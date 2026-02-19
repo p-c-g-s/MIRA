@@ -32,7 +32,7 @@ export function Canvas() {
   }, [clear, undo]);
 
   return (
-    <div className="fixed inset-0 w-full h-full" style={{ cursor: drawingEnabled ? "crosshair" : "none" }}>
+    <div className="fixed inset-0 w-full h-full" style={{ cursor: drawingEnabled ? "crosshair" : "default" }}>
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ touchAction: "none" }} />
       {spotlightEnabled && drawingEnabled && <Spotlight x={cursor.x} y={cursor.y} />}
     </div>

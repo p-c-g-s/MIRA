@@ -33,8 +33,10 @@ export function Toolbar() {
 
   const applyDrawingEnabled = useCallback(async (enabled: boolean) => {
     setDrawingEnabled(enabled);
-    await invoke("set_overlay_passthrough", { passThrough: !enabled });
+    // Update canvas cursor style before changing passthrough, so the overlay
+    // never briefly captures events while still showing cursor: none.
     await invoke("emit_to_overlay", { event: "drawing-toggled", payload: { enabled } });
+    await invoke("set_overlay_passthrough", { passThrough: !enabled });
   }, []);
 
   const applyColor = useCallback(async (color: string) => {
