@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body, #root {
+  margin: 0; padding: 0;
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@theme {
+  --color-mira-white:  #ffffff;
+  --color-mira-red:    #ef4444;
+  --color-mira-orange: #f97316;
+  --color-mira-yellow: #eab308;
+  --color-mira-green:  #22c55e;
+  --color-mira-blue:   #3b82f6;
+}
