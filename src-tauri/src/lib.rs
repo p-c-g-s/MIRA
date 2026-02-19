@@ -15,12 +15,15 @@ fn set_overlay_passthrough(app: AppHandle, pass_through: bool) -> Result<(), Str
         .set_ignore_cursor_events(pass_through)
         .map_err(|e| e.to_string())?;
 
-    // When entering draw mode the overlay captures all input, which would block
-    // toolbar clicks. Re-raise the toolbar above the overlay in z-order so it
-    // stays clickable for tool changes and exiting draw mode.
-    if let Some(toolbar) = app.get_webview_window("toolbar") {
-        let _ = toolbar.set_always_on_top(false);
-        let _ = toolbar.set_always_on_top(true);
+    // When *entering* draw mode the overlay captures all input — re-raise the
+    // toolbar so it stays clickable for tool changes and exiting draw mode.
+    // Only do this on enter (pass_through=false); skip on exit to avoid the
+    // window-level toggle causing a cursor jump.
+    if !pass_through {
+        if let Some(toolbar) = app.get_webview_window("toolbar") {
+            let _ = toolbar.set_always_on_top(false);
+            let _ = toolbar.set_always_on_top(true);
+        }
     }
 
     Ok(())

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -10,6 +10,15 @@ export function Toolbar() {
   const [spotlightEnabled, setSpotlightEnabled] = useState(false);
   const [currentColor, setCurrentColor]         = useState<string>(PRESET_COLORS[0]);
   const [currentSize, setCurrentSize]           = useState<number>(6);
+
+  // Refs so shortcut listeners (registered once) always read current state
+  // without needing to re-subscribe on every state change.
+  const overlayVisibleRef   = useRef(overlayVisible);
+  const drawingEnabledRef   = useRef(drawingEnabled);
+  const spotlightEnabledRef = useRef(spotlightEnabled);
+  useEffect(() => { overlayVisibleRef.current   = overlayVisible;   }, [overlayVisible]);
+  useEffect(() => { drawingEnabledRef.current   = drawingEnabled;   }, [drawingEnabled]);
+  useEffect(() => { spotlightEnabledRef.current = spotlightEnabled; }, [spotlightEnabled]);
 
   // ── Overlay state changes ────────────────────────────────────────────────
 
@@ -57,31 +66,26 @@ export function Toolbar() {
 
   const handleQuit = useCallback(() => getCurrentWindow().close(), []);
 
-  // ── Global shortcut listeners ────────────────────────────────────────────
+  // ── Global shortcut listeners (registered once — state read via refs) ────
 
   useEffect(() => {
     const subs: Array<() => void> = [];
     (async () => {
-      subs.push(await listen("shortcut-toggle",      () => applyOverlayVisible(!overlayVisible)));
+      subs.push(await listen("shortcut-toggle",      () => applyOverlayVisible(!overlayVisibleRef.current)));
       subs.push(await listen("shortcut-clear",       () => handleClear()));
-      subs.push(await listen("shortcut-spotlight",   () => applySpotlight(!spotlightEnabled)));
-      subs.push(await listen("shortcut-draw-toggle", () => applyDrawingEnabled(!drawingEnabled)));
+      subs.push(await listen("shortcut-spotlight",   () => applySpotlight(!spotlightEnabledRef.current)));
+      subs.push(await listen("shortcut-draw-toggle", () => applyDrawingEnabled(!drawingEnabledRef.current)));
     })();
     return () => subs.forEach((fn) => fn());
-  }, [overlayVisible, drawingEnabled, spotlightEnabled, applyOverlayVisible, applyDrawingEnabled, applySpotlight, handleClear]);
-
-  // ── Drag ─────────────────────────────────────────────────────────────────
-
-  const handleDragStart = useCallback(async (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest("button")) return;
-    await getCurrentWindow().startDragging();
-  }, []);
+  }, [applyOverlayVisible, applyDrawingEnabled, applySpotlight, handleClear]); // stable callbacks, register once
 
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
+    // data-tauri-drag-region: WebKit-native drag — button clicks are
+    // automatically excluded, no JS mousedown handler needed.
     <div
-      onMouseDown={handleDragStart}
+      data-tauri-drag-region=""
       className="flex items-center gap-2 px-3 h-16 bg-neutral-900 rounded-xl shadow-2xl select-none"
       style={{ width: 380 }}
     >
