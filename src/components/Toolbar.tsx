@@ -62,12 +62,13 @@ export function Toolbar() {
   useEffect(() => {
     const subs: Array<() => void> = [];
     (async () => {
-      subs.push(await listen("shortcut-toggle",    () => applyOverlayVisible(!overlayVisible)));
-      subs.push(await listen("shortcut-clear",     () => handleClear()));
-      subs.push(await listen("shortcut-spotlight", () => applySpotlight(!spotlightEnabled)));
+      subs.push(await listen("shortcut-toggle",      () => applyOverlayVisible(!overlayVisible)));
+      subs.push(await listen("shortcut-clear",       () => handleClear()));
+      subs.push(await listen("shortcut-spotlight",   () => applySpotlight(!spotlightEnabled)));
+      subs.push(await listen("shortcut-draw-toggle", () => applyDrawingEnabled(!drawingEnabled)));
     })();
     return () => subs.forEach((fn) => fn());
-  }, [overlayVisible, spotlightEnabled, applyOverlayVisible, applySpotlight, handleClear]);
+  }, [overlayVisible, drawingEnabled, spotlightEnabled, applyOverlayVisible, applyDrawingEnabled, applySpotlight, handleClear]);
 
   // ── Drag ─────────────────────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ export function Toolbar() {
       <Sep />
 
       {/* Pen */}
-      <Btn active={drawingEnabled} disabled={!overlayVisible} onClick={() => applyDrawingEnabled(!drawingEnabled)} title="Draw">
+      <Btn active={drawingEnabled} disabled={!overlayVisible} onClick={() => applyDrawingEnabled(!drawingEnabled)} title="Draw (⌘⇧D)">
         <PenIcon />
       </Btn>
 

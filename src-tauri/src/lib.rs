@@ -13,7 +13,17 @@ fn set_overlay_passthrough(app: AppHandle, pass_through: bool) -> Result<(), Str
         .ok_or("overlay window not found")?;
     overlay
         .set_ignore_cursor_events(pass_through)
-        .map_err(|e| e.to_string())
+        .map_err(|e| e.to_string())?;
+
+    // When entering draw mode the overlay captures all input, which would block
+    // toolbar clicks. Re-raise the toolbar above the overlay in z-order so it
+    // stays clickable for tool changes and exiting draw mode.
+    if let Some(toolbar) = app.get_webview_window("toolbar") {
+        let _ = toolbar.set_always_on_top(false);
+        let _ = toolbar.set_always_on_top(true);
+    }
+
+    Ok(())
 }
 
 /// Show or hide the overlay window.
@@ -96,6 +106,10 @@ fn setup_windows(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
     overlay.set_ignore_cursor_events(true)?; // start in pass-through
     overlay.show()?;
 
+    // Re-raise toolbar so it sits above the overlay in z-order from the start
+    toolbar.set_always_on_top(false)?;
+    toolbar.set_always_on_top(true)?;
+
     // Position toolbar bottom-center of the primary monitor
     let toolbar_phys_w = (380.0 * scale) as i32;
     let toolbar_phys_h = (64.0 * scale) as i32;
@@ -117,6 +131,7 @@ fn register_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Er
         Shortcut::new(meta_shift, Code::KeyC), // clear
         Shortcut::new(meta_shift, Code::KeyZ), // undo
         Shortcut::new(meta_shift, Code::KeyS), // spotlight
+        Shortcut::new(meta_shift, Code::KeyD), // toggle draw mode
     ])?;
     Ok(())
 }
@@ -135,6 +150,9 @@ fn handle_shortcut(app: &AppHandle, shortcut: &Shortcut) {
         }
         Code::KeyS => {
             let _ = app.emit_to("toolbar", "shortcut-spotlight", ());
+        }
+        Code::KeyD => {
+            let _ = app.emit_to("toolbar", "shortcut-draw-toggle", ());
         }
         _ => {}
     }
