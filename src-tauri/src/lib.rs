@@ -60,7 +60,9 @@ pub fn run() {
         ])
         .setup(|app| {
             setup_windows(app)?;
-            register_shortcuts(app)?;
+            if let Err(e) = register_shortcuts(app) {
+                eprintln!("Global shortcuts unavailable (grant Accessibility permission): {e}");
+            }
             Ok(())
         })
         .run(tauri::generate_context!())
