@@ -10,7 +10,7 @@ export function Canvas() {
   const [spotlightEnabled, setSpotlightEnabled] = useState(false);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
 
-  const { canvasRef, undo, clear } = useDrawing({ color, lineWidth, enabled: drawingEnabled });
+  const { canvasRef, undo, redo, clear } = useDrawing({ color, lineWidth, enabled: drawingEnabled });
 
   useEffect(() => {
     const onMove = (e: MouseEvent) => setCursor({ x: e.clientX, y: e.clientY });
@@ -27,6 +27,7 @@ export function Canvas() {
       subs.push(await listen<{ enabled: boolean }>("spotlight-toggled", (e) => setSpotlightEnabled(e.payload.enabled)));
       subs.push(await listen("shortcut-clear", () => clear()));
       subs.push(await listen("shortcut-undo",  () => undo()));
+      subs.push(await listen("shortcut-redo",  () => redo()));
     })();
     return () => subs.forEach((fn) => fn());
   }, [clear, undo]);
