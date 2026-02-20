@@ -1,5 +1,17 @@
 use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use serde::{Deserialize, Serialize};
+use std::{fs, path::PathBuf};
+
+const TOOLBAR_POSITION_FILE: &str = "toolbar-position.json";
+const TOOLBAR_LOGICAL_WIDTH: f64 = 460.0;
+const TOOLBAR_LOGICAL_HEIGHT: f64 = 68.0;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+struct ToolbarPosition {
+    x: i32,
+    y: i32,
+}
 
 // ── Commands ──────────────────────────────────────────────────────────────────
 
@@ -37,6 +49,14 @@ fn emit_to_overlay(app: AppHandle, event: String, payload: serde_json::Value) ->
         .map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn save_toolbar_position(app: AppHandle, x: i32, y: i32) -> Result<(), String> {
+    let pos = ToolbarPosition { x, y };
+    let path = toolbar_position_path(&app).map_err(|e| e.to_string())?;
+    let data = serde_json::to_vec(&pos).map_err(|e| e.to_string())?;
+    fs::write(path, data).map_err(|e| e.to_string())
+}
+
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -57,6 +77,7 @@ pub fn run() {
             set_overlay_passthrough,
             set_overlay_visible,
             emit_to_overlay,
+            save_toolbar_position,
         ])
         .setup(|app| {
             setup_windows(app)?;
@@ -82,6 +103,7 @@ fn setup_windows(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
     let monitor = overlay.primary_monitor()?.ok_or("no primary monitor")?;
     let mon_size = monitor.size();
     let mon_pos = monitor.position();
+    let work_area = monitor.work_area();
     let scale = monitor.scale_factor();
 
     // Resize overlay to cover the full primary monitor
@@ -100,12 +122,19 @@ fn setup_windows(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
     toolbar.set_always_on_top(false)?;
     toolbar.set_always_on_top(true)?;
 
-    // Position toolbar bottom-center of the primary monitor
-    let toolbar_phys_w = (380.0 * scale) as i32;
-    let toolbar_phys_h = (64.0 * scale) as i32;
+    // Position toolbar top-center inside monitor work area by default.
+    let toolbar_phys_w = (TOOLBAR_LOGICAL_WIDTH * scale) as i32;
+    let toolbar_phys_h = (TOOLBAR_LOGICAL_HEIGHT * scale) as i32;
     let margin_phys = (24.0 * scale) as i32;
-    let toolbar_x = mon_pos.x + (mon_size.width as i32 - toolbar_phys_w) / 2;
-    let toolbar_y = mon_pos.y + mon_size.height as i32 - toolbar_phys_h - margin_phys;
+    let default_toolbar_x = work_area.position.x + (work_area.size.width as i32 - toolbar_phys_w) / 2;
+    let default_toolbar_y = work_area.position.y + margin_phys;
+
+    let saved = load_toolbar_position(&app.handle())
+        .map(|pos| clamp_toolbar_position(pos, work_area, toolbar_phys_w, toolbar_phys_h));
+    let (toolbar_x, toolbar_y) = saved
+        .map(|pos| (pos.x, pos.y))
+        .unwrap_or((default_toolbar_x, default_toolbar_y));
+
     toolbar.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
         x: toolbar_x,
         y: toolbar_y,
@@ -145,5 +174,35 @@ fn handle_shortcut(app: &AppHandle, shortcut: &Shortcut) {
             let _ = app.emit_to("toolbar", "shortcut-draw-toggle", ());
         }
         _ => {}
+    }
+}
+
+fn toolbar_position_path(app: &AppHandle) -> Result<PathBuf, Box<dyn std::error::Error>> {
+    let mut dir = app.path().app_data_dir()?;
+    fs::create_dir_all(&dir)?;
+    dir.push(TOOLBAR_POSITION_FILE);
+    Ok(dir)
+}
+
+fn load_toolbar_position(app: &AppHandle) -> Option<ToolbarPosition> {
+    let path = toolbar_position_path(app).ok()?;
+    let data = fs::read(path).ok()?;
+    serde_json::from_slice::<ToolbarPosition>(&data).ok()
+}
+
+fn clamp_toolbar_position(
+    pos: ToolbarPosition,
+    work_area: &tauri::PhysicalRect<i32, u32>,
+    toolbar_w: i32,
+    toolbar_h: i32,
+) -> ToolbarPosition {
+    let min_x = work_area.position.x;
+    let max_x = work_area.position.x + work_area.size.width as i32 - toolbar_w;
+    let min_y = work_area.position.y;
+    let max_y = work_area.position.y + work_area.size.height as i32 - toolbar_h;
+
+    ToolbarPosition {
+        x: pos.x.clamp(min_x, max_x),
+        y: pos.y.clamp(min_y, max_y),
     }
 }

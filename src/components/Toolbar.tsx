@@ -4,6 +4,8 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PRESET_COLORS, PEN_SIZES } from "../types";
 
+const TOOLBAR_WIDTH = 460;
+
 export function Toolbar() {
   const [overlayVisible, setOverlayVisible]     = useState(true);
   const [drawingEnabled, setDrawingEnabled]     = useState(false);
@@ -74,23 +76,60 @@ export function Toolbar() {
     const subs: Array<() => void> = [];
     (async () => {
       subs.push(await listen("shortcut-toggle",      () => applyOverlayVisible(!overlayVisibleRef.current)));
-      subs.push(await listen("shortcut-clear",       () => handleClear()));
       subs.push(await listen("shortcut-spotlight",   () => applySpotlight(!spotlightEnabledRef.current)));
       subs.push(await listen("shortcut-draw-toggle", () => applyDrawingEnabled(!drawingEnabledRef.current)));
     })();
     return () => subs.forEach((fn) => fn());
-  }, [applyOverlayVisible, applyDrawingEnabled, applySpotlight, handleClear]); // stable callbacks, register once
+  }, [applyOverlayVisible, applyDrawingEnabled, applySpotlight]); // stable callbacks, register once
+
+  // Persist toolbar position whenever it is dragged.
+  useEffect(() => {
+    const win = getCurrentWindow();
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    let unlisten: (() => void) | undefined;
+
+    const setup = async () => {
+      unlisten = await win.onMoved(({ payload }) => {
+        if (timeoutId) clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          void invoke("save_toolbar_position", { x: payload.x, y: payload.y });
+        }, 120);
+      });
+    };
+
+    void setup();
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (unlisten) unlisten();
+    };
+  }, []);
 
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
-    // data-tauri-drag-region: WebKit-native drag — button clicks are
-    // automatically excluded, no JS mousedown handler needed.
     <div
-      data-tauri-drag-region=""
-      className="flex items-center gap-2 px-3 h-16 bg-neutral-900 rounded-xl shadow-2xl select-none"
-      style={{ width: 380 }}
+      className="flex items-center gap-2 px-3.5 h-[68px] bg-neutral-900 rounded-xl shadow-2xl select-none"
+      style={{ width: TOOLBAR_WIDTH }}
     >
+      {/* Explicit drag handle for reliable toolbar movement on all clickable layouts */}
+      <button
+        onMouseDown={(e) => {
+          e.preventDefault();
+          void getCurrentWindow().startDragging();
+        }}
+        title="Drag toolbar"
+        className="flex items-center justify-center w-7 h-9 rounded-md text-neutral-300 hover:bg-neutral-700 cursor-grab active:cursor-grabbing"
+      >
+        <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
+          <circle cx="2" cy="2" r="1" fill="currentColor" />
+          <circle cx="8" cy="2" r="1" fill="currentColor" />
+          <circle cx="2" cy="7" r="1" fill="currentColor" />
+          <circle cx="8" cy="7" r="1" fill="currentColor" />
+          <circle cx="2" cy="12" r="1" fill="currentColor" />
+          <circle cx="8" cy="12" r="1" fill="currentColor" />
+        </svg>
+      </button>
+
       {/* Toggle visibility */}
       <Btn active={overlayVisible} onClick={() => applyOverlayVisible(!overlayVisible)} title="Toggle (⌘⇧X)">
         <EyeIcon on={overlayVisible} />
@@ -116,7 +155,7 @@ export function Toolbar() {
           <button
             key={c}
             onClick={() => applyColor(c)}
-            className="w-5 h-5 rounded-full border-2 transition-transform"
+            className="w-6 h-6 rounded-full border-2 transition-transform"
             style={{
               backgroundColor: c,
               borderColor: currentColor === c ? "#fff" : "transparent",
@@ -134,7 +173,7 @@ export function Toolbar() {
           <button
             key={s}
             onClick={() => applySize(s)}
-            className="flex items-center justify-center w-7 h-7 rounded transition-colors hover:bg-neutral-700"
+            className="flex items-center justify-center w-8 h-8 rounded transition-colors hover:bg-neutral-700"
             style={{ backgroundColor: currentSize === s ? "#404040" : "transparent" }}
           >
             <div className="rounded-full bg-white" style={{ width: s, height: s }} />
@@ -167,7 +206,7 @@ function Btn({ onClick, active, disabled, title, children }: {
     <button
       onClick={onClick} disabled={disabled} title={title}
       className={[
-        "flex items-center justify-center w-8 h-8 rounded-lg transition-colors text-white",
+        "flex items-center justify-center w-9 h-9 rounded-lg transition-colors text-white",
         active ? "bg-blue-600 hover:bg-blue-500" : "hover:bg-neutral-700",
         disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer",
       ].join(" ")}
@@ -178,7 +217,7 @@ function Btn({ onClick, active, disabled, title, children }: {
 }
 
 function Sep() {
-  return <div className="w-px h-8 bg-neutral-700 mx-0.5 flex-shrink-0" />;
+  return <div className="w-px h-9 bg-neutral-700 mx-0.5 flex-shrink-0" />;
 }
 
 // Inline SVG icons (stroke="currentColor", no icon lib needed)
