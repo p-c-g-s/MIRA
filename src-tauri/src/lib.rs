@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 
 const TOOLBAR_POSITION_FILE: &str = "toolbar-position.json";
-const TOOLBAR_LOGICAL_WIDTH: f64 = 460.0;
-const TOOLBAR_LOGICAL_HEIGHT: f64 = 68.0;
+const TOOLBAR_LOGICAL_WIDTH: f64 = 468.0;
+const TOOLBAR_LOGICAL_HEIGHT: f64 = 60.0;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 struct ToolbarPosition {

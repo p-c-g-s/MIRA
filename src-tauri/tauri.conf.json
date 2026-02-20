@@ -30,8 +30,8 @@
       {
         "label": "toolbar",
         "title": "mira",
-        "width": 460,
-        "height": 68,
+        "width": 468,
+        "height": 60,
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,

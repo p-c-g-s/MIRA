@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PRESET_COLORS, PEN_SIZES } from "../types";
 
-const TOOLBAR_WIDTH = 460;
+const TOOLBAR_WIDTH = 468;
 
 export function Toolbar() {
   const [overlayVisible, setOverlayVisible]     = useState(true);
@@ -108,7 +108,7 @@ export function Toolbar() {
 
   return (
     <div
-      className="flex items-center gap-2 px-3.5 h-[68px] bg-neutral-900 rounded-xl shadow-2xl select-none"
+      className="flex items-center px-2.5 h-[60px] bg-neutral-900 rounded-xl shadow-2xl select-none"
       style={{ width: TOOLBAR_WIDTH }}
     >
       {/* Explicit drag handle for reliable toolbar movement on all clickable layouts */}
@@ -118,7 +118,7 @@ export function Toolbar() {
           void getCurrentWindow().startDragging();
         }}
         title="Drag toolbar"
-        className="flex items-center justify-center w-7 h-9 rounded-md text-neutral-300 hover:bg-neutral-700 cursor-grab active:cursor-grabbing"
+        className="flex-shrink-0 mr-1 flex items-center justify-center w-5 h-7 rounded-md text-neutral-300 hover:bg-neutral-700 cursor-grab active:cursor-grabbing"
       >
         <svg width="10" height="14" viewBox="0 0 10 14" fill="none">
           <circle cx="2" cy="2" r="1" fill="currentColor" />
@@ -150,12 +150,12 @@ export function Toolbar() {
       <Sep />
 
       {/* Colors */}
-      <div className="flex gap-1">
+      <div className="flex flex-shrink-0 gap-0.5">
         {PRESET_COLORS.map((c) => (
           <button
             key={c}
             onClick={() => applyColor(c)}
-            className="w-6 h-6 rounded-full border-2 transition-transform"
+            className="flex-shrink-0 w-[18px] h-[18px] rounded-full border-2 transition-transform"
             style={{
               backgroundColor: c,
               borderColor: currentColor === c ? "#fff" : "transparent",
@@ -168,12 +168,12 @@ export function Toolbar() {
       <Sep />
 
       {/* Pen sizes */}
-      <div className="flex gap-1 items-center">
+      <div className="flex flex-shrink-0 gap-0.5 items-center">
         {PEN_SIZES.map((s) => (
           <button
             key={s}
             onClick={() => applySize(s)}
-            className="flex items-center justify-center w-8 h-8 rounded transition-colors hover:bg-neutral-700"
+            className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded transition-colors hover:bg-neutral-700"
             style={{ backgroundColor: currentSize === s ? "#404040" : "transparent" }}
           >
             <div className="rounded-full bg-white" style={{ width: s, height: s }} />
@@ -206,7 +206,7 @@ function Btn({ onClick, active, disabled, title, children }: {
     <button
       onClick={onClick} disabled={disabled} title={title}
       className={[
-        "flex items-center justify-center w-9 h-9 rounded-lg transition-colors text-white",
+        "flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-md transition-colors text-white",
         active ? "bg-blue-600 hover:bg-blue-500" : "hover:bg-neutral-700",
         disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer",
       ].join(" ")}
@@ -217,7 +217,7 @@ function Btn({ onClick, active, disabled, title, children }: {
 }
 
 function Sep() {
-  return <div className="w-px h-9 bg-neutral-700 mx-0.5 flex-shrink-0" />;
+  return <div className="w-px h-7 bg-neutral-700 mx-1.5 flex-shrink-0" />;
 }
 
 // Inline SVG icons (stroke="currentColor", no icon lib needed)
