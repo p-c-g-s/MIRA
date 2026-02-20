@@ -12,6 +12,7 @@ Built with Tauri 2, React 19, and Rust.
 
 - **Transparent full-screen overlay** — draw on top of any app, zero interference when idle
 - **Floating toolbar** — draggable, always-on-top control panel
+- **Compact toolbar mode** — reduced controls and 3-colour palette for tighter layouts
 - **Freehand drawing** with Pointer Events API and Retina-quality canvas (DPR scaling)
 - **6 preset colours** and **3 pen sizes**
 - **Undo / Redo / Clear**
@@ -121,3 +122,4 @@ src-tauri/
 - **Accessibility permission required** — global shortcuts use `CGEventTap` and silently fail without it
 - **No stroke persistence** — strokes live in memory for the lifetime of the session; hiding the overlay preserves them, quitting loses them
 - **Toolbar persistence scope** — toolbar position persists and can be reset from the toolbar; currently scoped to the primary monitor flow
+- **Focus model on macOS** — first click may still be used to activate app/window in some desktop contexts despite `acceptFirstMouse`

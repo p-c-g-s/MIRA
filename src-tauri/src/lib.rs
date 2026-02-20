@@ -4,7 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, thread, time::Duration};
 
 const TOOLBAR_POSITION_FILE: &str = "toolbar-position.json";
-const TOOLBAR_LOGICAL_WIDTH: f64 = 504.0;
+const TOOLBAR_LOGICAL_WIDTH_EXPANDED: f64 = 504.0;
+const TOOLBAR_LOGICAL_WIDTH_COMPACT: f64 = 392.0;
 const TOOLBAR_LOGICAL_HEIGHT: f64 = 60.0;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -102,6 +103,46 @@ fn reset_toolbar_position(app: AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn set_toolbar_compact(app: AppHandle, compact: bool) -> Result<(), String> {
+    let toolbar: WebviewWindow = app
+        .get_webview_window("toolbar")
+        .ok_or("toolbar window not found")?;
+    let monitor = toolbar
+        .current_monitor()
+        .map_err(|e| e.to_string())?
+        .or(toolbar.primary_monitor().map_err(|e| e.to_string())?)
+        .ok_or("no monitor available")?;
+    let work_area = monitor.work_area();
+    let scale = monitor.scale_factor();
+    let (toolbar_w_logical, toolbar_h_logical) = toolbar_dimensions(compact);
+    let toolbar_w_phys = (toolbar_w_logical * scale) as i32;
+    let toolbar_h_phys = (toolbar_h_logical * scale) as i32;
+
+    toolbar
+        .set_size(tauri::Size::Logical(tauri::LogicalSize {
+            width: toolbar_w_logical,
+            height: toolbar_h_logical,
+        }))
+        .map_err(|e| e.to_string())?;
+
+    let pos = toolbar.outer_position().map_err(|e| e.to_string())?;
+    let clamped = clamp_toolbar_position(
+        ToolbarPosition { x: pos.x, y: pos.y },
+        work_area,
+        toolbar_w_phys,
+        toolbar_h_phys,
+    );
+    toolbar
+        .set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+            x: clamped.x,
+            y: clamped.y,
+        }))
+        .map_err(|e| e.to_string())?;
+
+    save_toolbar_position(app, clamped.x, clamped.y)
+}
+
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -124,6 +165,7 @@ pub fn run() {
             emit_to_overlay,
             save_toolbar_position,
             reset_toolbar_position,
+            set_toolbar_compact,
         ])
         .setup(|app| {
             setup_windows(app)?;
@@ -173,6 +215,7 @@ fn setup_windows(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
             .decorations(false)
             .transparent(true)
             .always_on_top(true)
+            .accept_first_mouse(true)
             .resizable(false)
             .skip_taskbar(true)
             .shadow(false)
@@ -194,7 +237,7 @@ fn setup_windows(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
     toolbar.set_always_on_top(true)?;
 
     // Position toolbar top-center inside monitor work area by default.
-    let toolbar_phys_w = (TOOLBAR_LOGICAL_WIDTH * scale) as i32;
+    let toolbar_phys_w = (TOOLBAR_LOGICAL_WIDTH_EXPANDED * scale) as i32;
     let toolbar_phys_h = (TOOLBAR_LOGICAL_HEIGHT * scale) as i32;
     let (default_toolbar_x, default_toolbar_y) = default_toolbar_position(work_area, scale);
 
@@ -286,7 +329,7 @@ fn clamp_toolbar_position(
 }
 
 fn default_toolbar_position(work_area: &tauri::PhysicalRect<i32, u32>, scale: f64) -> (i32, i32) {
-    let toolbar_phys_w = (TOOLBAR_LOGICAL_WIDTH * scale) as i32;
+    let toolbar_phys_w = (TOOLBAR_LOGICAL_WIDTH_EXPANDED * scale) as i32;
     let margin_phys = (24.0 * scale) as i32;
     let x = work_area.position.x + (work_area.size.width as i32 - toolbar_phys_w) / 2;
     let y = work_area.position.y + margin_phys;
@@ -342,4 +385,12 @@ fn overlay_labels(app: &AppHandle) -> Vec<String> {
 
 fn monitor_key(m: &tauri::Monitor) -> (i32, i32, u32, u32) {
     (m.position().x, m.position().y, m.size().width, m.size().height)
+}
+
+fn toolbar_dimensions(compact: bool) -> (f64, f64) {
+    if compact {
+        (TOOLBAR_LOGICAL_WIDTH_COMPACT, TOOLBAR_LOGICAL_HEIGHT)
+    } else {
+        (TOOLBAR_LOGICAL_WIDTH_EXPANDED, TOOLBAR_LOGICAL_HEIGHT)
+    }
 }

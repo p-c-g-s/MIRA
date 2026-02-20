@@ -36,6 +36,7 @@ Status: completed.
 
 ## Future Ideas
 
+- **Toolbar variants** — compact-only profile, menu bar mode, and auto-collapse on inactivity
 - **Stroke persistence** — save/load annotation sessions to disk
 - **Arrow and shape tools** — straight lines, rectangles, circles via click-drag
 - **Text annotations** — floating text labels on the overlay
