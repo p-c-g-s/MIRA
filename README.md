@@ -1,41 +1,86 @@
-# Mira — Screen Annotation Overlay
+# Mira
 
-![Mira toolbar preview](docs/preview.svg)
+![Mira toolbar preview](docs/preview.png)
 
-> show what you mean.
+> Show what you mean.
 
-Mira is an always-on-top desktop overlay for live explanations on screen. You can draw, add geometric forms, spotlight the cursor, and clear instantly with shortcuts.
+Mira is a lightweight desktop annotation overlay for live presentations, demos, and teaching.
+You can draw on top of any app, highlight key points, and clear everything quickly without leaving your flow.
 
-Built with Tauri 2, React 19, and Rust.
+This project was created to solve a real day-to-day presentation problem and to learn Tauri by building a real product with AI-assisted development.
+If this is useful for your workflow, feel free to use it, adapt it, and contribute.
 
-## Project Info
+## What Mira Does
 
-- Author: Pedro Santos
-- Repository: [https://github.com/p-c-g-s/MIRA](https://github.com/p-c-g-s/MIRA)
+- Opens a transparent, always-on-top drawing overlay
+- Provides a floating draggable toolbar
+- Supports pen + basic geometric shapes (line, rectangle, ellipse, arrow)
+- Offers color and stroke controls
+- Includes undo, redo, clear, and reset actions
+- Includes spotlight/pointer support for presentations
+- Supports multiple monitors
+- Supports global shortcuts for fast control
 
-## Features
+## Why This Exists
 
-- Transparent full-screen overlay above any app
-- Draggable floating toolbar (always on top)
-- Drawing tools: pen, line, rectangle, ellipse, arrow
-- Collapsible color palette and adjustable stroke size
-- Undo, redo, clear
-- Spotlight mode (including pass-through mode)
-- Multi-monitor overlays
-- Global shortcuts for fast control
+During live calls and presentations, switching tools breaks flow.
+Mira keeps annotation controls instantly available on top of your screen so explanations stay visual and fast.
+
+## Tech Stack
+
+- Tauri 2 (Rust backend + desktop shell)
+- React 19 + TypeScript (UI)
+- Vite (frontend build)
+- Bun (package/runtime tooling)
+
+## Architecture
+
+Mira follows a split-window architecture:
+
+- `toolbar` window: compact floating controller
+- `overlay*` windows: transparent per-monitor drawing surfaces
+- Rust core: creates/manages windows, handles positioning, and command/event bridge
+
+Frontend windows call Rust commands (`invoke`), and Rust emits events back to overlays/toolbars for synchronized state changes.
+
+```mermaid
+flowchart LR
+  U["User"] --> T["Toolbar Window (React)"]
+  T -->|"invoke commands"| R["Tauri Core (Rust)"]
+  R -->|"emit events"| O["Overlay Windows (React Canvas)"]
+  O -->|"visual feedback"| U
+  R --> M["Multi-monitor window manager"]
+```
+
+## Project Structure
+
+```text
+mira/
+  src/
+    components/
+      Toolbar.tsx
+      Canvas.tsx
+    hooks/
+      useDrawing.ts
+    types/
+  src-tauri/
+    src/
+      lib.rs
+    tauri.conf.json
+```
 
 ## Keyboard Shortcuts
 
 | Shortcut | Action |
 |---|---|
-| `⌘⇧X` | Toggle overlay on / off |
-| `⌘⇧D` | Toggle draw mode |
-| `⌘⇧C` | Clear canvas |
-| `⌘⇧Z` | Undo |
-| `⌘⇧Y` | Redo |
-| `⌘⇧S` | Toggle spotlight |
+| `Cmd+Shift+X` | Toggle overlay on/off |
+| `Cmd+Shift+D` | Toggle draw mode |
+| `Cmd+Shift+C` | Clear canvas |
+| `Cmd+Shift+Z` | Undo |
+| `Cmd+Shift+Y` | Redo |
+| `Cmd+Shift+S` | Toggle spotlight |
 
-> On macOS, grant Accessibility permissions in System Settings for global shortcuts.
+On macOS, grant Accessibility permissions in System Settings for global shortcuts.
 
 ## Getting Started
 
@@ -45,7 +90,7 @@ Built with Tauri 2, React 19, and Rust.
 - [Bun](https://bun.sh/)
 - macOS (primary tested target)
 
-### Development
+### Run in development
 
 ```bash
 bun install
@@ -58,20 +103,22 @@ bun run tauri dev
 bun run tauri build
 ```
 
-## Architecture
+## Contribution
 
-Two-window setup:
+Contributions are welcome.
 
-- `overlay*`: transparent drawing windows (one per monitor)
-- `toolbar`: floating control window
+1. Fork the repository
+2. Create a feature branch
+3. Make focused changes with clear commit messages
+4. Open a pull request with:
+   - what changed
+   - why it changed
+   - screenshots/gifs for UI updates
 
-`App.tsx` routes by window label. Toolbar actions invoke Rust commands, and Rust emits events back to overlay windows.
+Please keep changes small and practical, and prefer incremental improvements.
 
-## Key Files
+## Project Info
 
-- `src/components/Toolbar.tsx`
-- `src/components/Canvas.tsx`
-- `src/hooks/useDrawing.ts`
-- `src/types/index.ts`
-- `src-tauri/src/lib.rs`
-- `src-tauri/tauri.conf.json`
+- Author: Pedro Santos
+- Repository: [p-c-g-s/MIRA](https://github.com/p-c-g-s/MIRA)
+
