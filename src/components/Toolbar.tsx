@@ -4,9 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PRESET_COLORS, PEN_SIZES } from "../types";
 
-const TOOLBAR_WIDTH_EXPANDED = 504;
-const TOOLBAR_WIDTH_COMPACT = 392;
-const COMPACT_MODE_KEY = "mira.toolbar.compact";
+const TOOLBAR_WIDTH = 504;
 
 export function Toolbar() {
   const [overlayVisible, setOverlayVisible]     = useState(true);
@@ -14,7 +12,7 @@ export function Toolbar() {
   const [spotlightEnabled, setSpotlightEnabled] = useState(false);
   const [currentColor, setCurrentColor]         = useState<string>(PRESET_COLORS[0]);
   const [currentSize, setCurrentSize]           = useState<number>(6);
-  const [compactMode, setCompactMode]           = useState<boolean>(() => localStorage.getItem(COMPACT_MODE_KEY) === "1");
+  const [colorsExpanded, setColorsExpanded]     = useState(false);
 
   // Refs so shortcut listeners (registered once) always read current state
   // without needing to re-subscribe on every state change.
@@ -75,17 +73,18 @@ export function Toolbar() {
     await invoke("reset_toolbar_position");
   }, []);
 
-  const handleQuit = useCallback(() => getCurrentWindow().close(), []);
-  const toggleCompactMode = useCallback(() => {
-    setCompactMode((v) => !v);
+  const handleQuit = useCallback(async () => {
+    await invoke("quit_app");
+  }, []);
+  const toggleColorsExpanded = useCallback(() => {
+    setColorsExpanded((v) => !v);
   }, []);
 
-  const visibleColors = compactMode
-    ? (() => {
-      const base = PRESET_COLORS.slice(0, 3);
-        return base.includes(currentColor as (typeof PRESET_COLORS)[number]) ? base : [base[0], base[1], currentColor];
-      })()
-    : PRESET_COLORS;
+  const visibleColors = (() => {
+    if (colorsExpanded) return PRESET_COLORS;
+    const base = PRESET_COLORS.slice(0, 3);
+    return base.includes(currentColor as (typeof PRESET_COLORS)[number]) ? base : [base[0], base[1], currentColor];
+  })();
 
   // ── Global shortcut listeners (registered once — state read via refs) ────
 
@@ -121,17 +120,12 @@ export function Toolbar() {
     };
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem(COMPACT_MODE_KEY, compactMode ? "1" : "0");
-    void invoke("set_toolbar_compact", { compact: compactMode });
-  }, [compactMode]);
-
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div
       className="flex items-center px-2.5 h-[60px] bg-neutral-900 rounded-xl shadow-2xl select-none"
-      style={{ width: compactMode ? TOOLBAR_WIDTH_COMPACT : TOOLBAR_WIDTH_EXPANDED }}
+      style={{ width: TOOLBAR_WIDTH }}
     >
       {/* Explicit drag handle for reliable toolbar movement on all clickable layouts */}
       <button
@@ -186,45 +180,41 @@ export function Toolbar() {
           />
         ))}
       </div>
-
-      {!compactMode && (
-        <>
-          <Sep />
-
-          {/* Pen sizes */}
-          <div className="flex flex-shrink-0 gap-0.5 items-center">
-            {PEN_SIZES.map((s) => (
-              <button
-                key={s}
-                onClick={() => applySize(s)}
-                className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded transition-colors hover:bg-neutral-700"
-                style={{ backgroundColor: currentSize === s ? "#404040" : "transparent" }}
-              >
-                <div className="rounded-full bg-white" style={{ width: s, height: s }} />
-              </button>
-            ))}
-          </div>
-
-          <Sep />
-        </>
-      )}
-
-      {/* Undo / Redo / Clear */}
-      <Btn onClick={handleUndo} title="Undo (⌘⇧Z)"><UndoIcon /></Btn>
-      {!compactMode && <Btn onClick={handleRedo} title="Redo (⌘⇧Y)"><RedoIcon /></Btn>}
-      <Btn onClick={handleClear} title="Clear (⌘⇧C)"><TrashIcon /></Btn>
-
-      {!compactMode && <Sep />}
-
-      {/* Reset toolbar position */}
-      {!compactMode && <Btn onClick={handleResetPosition} title="Reset toolbar position"><ResetIcon /></Btn>}
+      <button
+        onClick={toggleColorsExpanded}
+        title={colorsExpanded ? "Show fewer colors" : "Show more colors"}
+        className="flex-shrink-0 ml-1 flex items-center justify-center w-5 h-5 rounded text-neutral-300 hover:bg-neutral-700"
+      >
+        <PaletteExpandIcon expanded={colorsExpanded} />
+      </button>
 
       <Sep />
 
-      {/* Compact mode */}
-      <Btn onClick={toggleCompactMode} title={compactMode ? "Expand toolbar" : "Compact toolbar"}>
-        <CompactIcon compact={compactMode} />
-      </Btn>
+      {/* Pen sizes */}
+      <div className="flex flex-shrink-0 gap-0.5 items-center">
+        {PEN_SIZES.map((s) => (
+          <button
+            key={s}
+            onClick={() => applySize(s)}
+            className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded transition-colors hover:bg-neutral-700"
+            style={{ backgroundColor: currentSize === s ? "#404040" : "transparent" }}
+          >
+            <div className="rounded-full bg-white" style={{ width: s, height: s }} />
+          </button>
+        ))}
+      </div>
+
+      <Sep />
+
+      {/* Undo / Redo / Clear */}
+      <Btn onClick={handleUndo} title="Undo (⌘⇧Z)"><UndoIcon /></Btn>
+      <Btn onClick={handleRedo} title="Redo (⌘⇧Y)"><RedoIcon /></Btn>
+      <Btn onClick={handleClear} title="Clear (⌘⇧C)"><TrashIcon /></Btn>
+
+      <Sep />
+
+      {/* Reset toolbar position */}
+      <Btn onClick={handleResetPosition} title="Reset toolbar position"><ResetIcon /></Btn>
 
       <Sep />
 
@@ -270,9 +260,9 @@ function UndoIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fi
 function RedoIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>; }
 function TrashIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>; }
 function ResetIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-9.36L1 10"/></svg>; }
-function CompactIcon({ compact }: { compact: boolean }) {
-  return compact
-    ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/><polyline points="15 18 21 12 15 6"/></svg>
-    : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/><polyline points="21 18 15 12 21 6"/></svg>;
+function PaletteExpandIcon({ expanded }: { expanded: boolean }) {
+  return expanded
+    ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
+    : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>;
 }
 function QuitIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }

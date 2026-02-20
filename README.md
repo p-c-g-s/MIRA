@@ -12,7 +12,7 @@ Built with Tauri 2, React 19, and Rust.
 
 - **Transparent full-screen overlay** — draw on top of any app, zero interference when idle
 - **Floating toolbar** — draggable, always-on-top control panel
-- **Compact toolbar mode** — reduced controls and 3-colour palette for tighter layouts
+- **Collapsible color palette** — starts short and expands to full preset palette on demand
 - **Freehand drawing** with Pointer Events API and Retina-quality canvas (DPR scaling)
 - **6 preset colours** and **3 pen sizes**
 - **Undo / Redo / Clear**
