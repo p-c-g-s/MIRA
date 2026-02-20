@@ -13,29 +13,24 @@ export function Canvas() {
   const { canvasRef, undo, redo, clear } = useDrawing({ color, lineWidth, enabled: drawingEnabled });
 
   useEffect(() => {
-    const onMove = (e: MouseEvent) => setCursor({ x: e.clientX, y: e.clientY });
-    window.addEventListener("mousemove", onMove);
-    return () => window.removeEventListener("mousemove", onMove);
-  }, []);
-
-  useEffect(() => {
     const subs: Array<() => void> = [];
     (async () => {
       subs.push(await listen<{ enabled: boolean }>("drawing-toggled",   (e) => setDrawingEnabled(e.payload.enabled)));
       subs.push(await listen<{ color: string }>("color-changed",        (e) => setColor(e.payload.color)));
       subs.push(await listen<{ size: number }>("size-changed",          (e) => setLineWidth(e.payload.size)));
       subs.push(await listen<{ enabled: boolean }>("spotlight-toggled", (e) => setSpotlightEnabled(e.payload.enabled)));
+      subs.push(await listen<{ x: number; y: number }>("cursor-moved",  (e) => setCursor({ x: e.payload.x, y: e.payload.y })));
       subs.push(await listen("shortcut-clear", () => clear()));
       subs.push(await listen("shortcut-undo",  () => undo()));
       subs.push(await listen("shortcut-redo",  () => redo()));
     })();
     return () => subs.forEach((fn) => fn());
-  }, [clear, undo]);
+  }, [clear, undo, redo]);
 
   return (
     <div className="fixed inset-0 w-full h-full" style={{ cursor: drawingEnabled ? "crosshair" : "default" }}>
       <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ touchAction: "none" }} />
-      {spotlightEnabled && drawingEnabled && <Spotlight x={cursor.x} y={cursor.y} />}
+      {spotlightEnabled && <Spotlight x={cursor.x} y={cursor.y} />}
     </div>
   );
 }

@@ -5,7 +5,7 @@ import { Toolbar } from "./components/Toolbar";
 const windowLabel = getCurrentWindow().label;
 
 export default function App() {
-  if (windowLabel === "overlay") return <Canvas />;
+  if (windowLabel.startsWith("overlay")) return <Canvas />;
   if (windowLabel === "toolbar") return <Toolbar />;
   return (
     <div className="flex items-center justify-center h-screen text-white bg-neutral-900">

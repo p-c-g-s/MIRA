@@ -18,17 +18,19 @@ Status: completed.
 ## MVP3 — Power Features
 
 ### Spotlight in pass-through mode
-Currently the spotlight ring only works when draw mode is active (overlay captures mouse events). In pass-through mode the overlay doesn't receive cursor positions.
+Status: completed.
 
-Fix: Rust-side cursor polling using `CGEventSource` on macOS:
-- Spawn a background thread that polls `CGEventSource::mouseLocation()` on a ~16ms interval
-- Emit cursor position events to the overlay via `app.emit_to("overlay", "cursor-moved", { x, y })`
-- Canvas listens for `cursor-moved` to update spotlight position even in pass-through mode
+- Added Rust-side cursor polling (~16ms) via `app.cursor_position()`.
+- Overlay now receives `cursor-moved` events with logical coordinates.
+- Canvas spotlight listens to `cursor-moved` and renders even when drawing mode is off.
 
 ### Multi-monitor support
-Currently the overlay covers only the primary monitor.
+Status: completed.
 
-Fix: enumerate all monitors in `setup_windows` using `app.available_monitors()` and spawn a `WebviewWindowBuilder` overlay for each one, then track which toolbar monitor the toolbar is on and size overlays accordingly.
+- `setup_windows` now enumerates `app.available_monitors()`.
+- Reuses `overlay` for primary monitor and creates `overlay-{n}` windows for additional monitors.
+- Overlay-targeted Rust commands/events now broadcast to all `overlay*` windows.
+- Frontend routes any `overlay*` label to the same `Canvas` component.
 
 ---
 

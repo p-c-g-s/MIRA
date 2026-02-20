@@ -1,7 +1,7 @@
-use tauri::{AppHandle, Emitter, Manager, WebviewWindow};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
+use std::{fs, path::PathBuf, thread, time::Duration};
 
 const TOOLBAR_POSITION_FILE: &str = "toolbar-position.json";
 const TOOLBAR_LOGICAL_WIDTH: f64 = 504.0;
@@ -13,6 +13,20 @@ struct ToolbarPosition {
     y: i32,
 }
 
+#[derive(Debug, Clone, Copy, Serialize)]
+struct CursorMovedPayload {
+    x: f64,
+    y: f64,
+}
+
+#[derive(Debug, Clone)]
+struct OverlayWindowInfo {
+    label: String,
+    monitor_x: i32,
+    monitor_y: i32,
+    scale: f64,
+}
+
 // ── Commands ──────────────────────────────────────────────────────────────────
 
 /// Toggle pass-through on the overlay window.
@@ -20,33 +34,40 @@ struct ToolbarPosition {
 /// pass_through=false → overlay captures clicks (drawing mode)
 #[tauri::command]
 fn set_overlay_passthrough(app: AppHandle, pass_through: bool) -> Result<(), String> {
-    let overlay: WebviewWindow = app
-        .get_webview_window("overlay")
-        .ok_or("overlay window not found")?;
-    overlay
-        .set_ignore_cursor_events(pass_through)
-        .map_err(|e| e.to_string())
+    for label in overlay_labels(&app) {
+        if let Some(overlay) = app.get_webview_window(&label) {
+            overlay
+                .set_ignore_cursor_events(pass_through)
+                .map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
 }
 
 /// Show or hide the overlay window.
 #[tauri::command]
 fn set_overlay_visible(app: AppHandle, visible: bool) -> Result<(), String> {
-    let overlay: WebviewWindow = app
-        .get_webview_window("overlay")
-        .ok_or("overlay window not found")?;
-    if visible {
-        overlay.show().map_err(|e| e.to_string())
-    } else {
-        overlay.hide().map_err(|e| e.to_string())
+    for label in overlay_labels(&app) {
+        if let Some(overlay) = app.get_webview_window(&label) {
+            if visible {
+                overlay.show().map_err(|e| e.to_string())?;
+            } else {
+                overlay.hide().map_err(|e| e.to_string())?;
+            }
+        }
     }
+    Ok(())
 }
 
 /// Bridge: toolbar frontend calls this to push events to the overlay window.
 /// Avoids needing core:event:allow-emit-to permission on the frontend.
 #[tauri::command]
 fn emit_to_overlay(app: AppHandle, event: String, payload: serde_json::Value) -> Result<(), String> {
-    app.emit_to("overlay", &event, payload)
-        .map_err(|e| e.to_string())
+    for label in overlay_labels(&app) {
+        app.emit_to(&label, &event, payload.clone())
+            .map_err(|e| e.to_string())?;
+    }
+    Ok(())
 }
 
 #[tauri::command]
@@ -118,30 +139,55 @@ pub fn run() {
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
 fn setup_windows(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
-    let overlay: WebviewWindow = app
-        .get_webview_window("overlay")
-        .ok_or("overlay window missing")?;
     let toolbar: WebviewWindow = app
         .get_webview_window("toolbar")
         .ok_or("toolbar window missing")?;
+    let primary_overlay: WebviewWindow = app
+        .get_webview_window("overlay")
+        .ok_or("overlay window missing")?;
 
-    let monitor = overlay.primary_monitor()?.ok_or("no primary monitor")?;
-    let mon_size = monitor.size();
-    let mon_pos = monitor.position();
-    let work_area = monitor.work_area();
-    let scale = monitor.scale_factor();
+    let primary_monitor = primary_overlay.primary_monitor()?.ok_or("no primary monitor")?;
+    let primary_key = monitor_key(&primary_monitor);
+    let work_area = primary_monitor.work_area();
+    let scale = primary_monitor.scale_factor();
 
-    // Resize overlay to cover the full primary monitor
-    overlay.set_size(tauri::Size::Physical(tauri::PhysicalSize {
-        width: mon_size.width,
-        height: mon_size.height,
-    }))?;
-    overlay.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
-        x: mon_pos.x,
-        y: mon_pos.y,
-    }))?;
-    overlay.set_ignore_cursor_events(true)?; // start in pass-through
-    overlay.show()?;
+    let mut overlays = vec![OverlayWindowInfo {
+        label: "overlay".to_string(),
+        monitor_x: primary_monitor.position().x,
+        monitor_y: primary_monitor.position().y,
+        scale,
+    }];
+
+    configure_overlay_for_monitor(&primary_overlay, &primary_monitor)?;
+
+    let mut overlay_index = 1usize;
+    for monitor in app.available_monitors()? {
+        if monitor_key(&monitor) == primary_key {
+            continue;
+        }
+
+        let label = format!("overlay-{overlay_index}");
+        overlay_index += 1;
+        let overlay = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
+            .title("mira-overlay")
+            .decorations(false)
+            .transparent(true)
+            .always_on_top(true)
+            .resizable(false)
+            .skip_taskbar(true)
+            .shadow(false)
+            .visible(false)
+            .build()?;
+        configure_overlay_for_monitor(&overlay, &monitor)?;
+        overlays.push(OverlayWindowInfo {
+            label,
+            monitor_x: monitor.position().x,
+            monitor_y: monitor.position().y,
+            scale: monitor.scale_factor(),
+        });
+    }
+
+    start_cursor_polling(app.handle().clone(), overlays);
 
     // Re-raise toolbar so it sits above the overlay in z-order from the start
     toolbar.set_always_on_top(false)?;
@@ -185,13 +231,19 @@ fn handle_shortcut(app: &AppHandle, shortcut: &Shortcut) {
             let _ = app.emit_to("toolbar", "shortcut-toggle", ());
         }
         Code::KeyC => {
-            let _ = app.emit_to("overlay", "shortcut-clear", ());
+            for label in overlay_labels(app) {
+                let _ = app.emit_to(&label, "shortcut-clear", ());
+            }
         }
         Code::KeyZ => {
-            let _ = app.emit_to("overlay", "shortcut-undo", ());
+            for label in overlay_labels(app) {
+                let _ = app.emit_to(&label, "shortcut-undo", ());
+            }
         }
         Code::KeyY => {
-            let _ = app.emit_to("overlay", "shortcut-redo", ());
+            for label in overlay_labels(app) {
+                let _ = app.emit_to(&label, "shortcut-redo", ());
+            }
         }
         Code::KeyS => {
             let _ = app.emit_to("toolbar", "shortcut-spotlight", ());
@@ -239,4 +291,55 @@ fn default_toolbar_position(work_area: &tauri::PhysicalRect<i32, u32>, scale: f6
     let x = work_area.position.x + (work_area.size.width as i32 - toolbar_phys_w) / 2;
     let y = work_area.position.y + margin_phys;
     (x, y)
+}
+
+fn start_cursor_polling(app: AppHandle, overlays: Vec<OverlayWindowInfo>) {
+    thread::spawn(move || {
+        let mut last = vec![(f64::MIN, f64::MIN); overlays.len()];
+        loop {
+            if let Ok(pos) = app.cursor_position() {
+                for (idx, overlay) in overlays.iter().enumerate() {
+                    // Convert screen-physical coords to this overlay's logical coords.
+                    let x = (pos.x - overlay.monitor_x as f64) / overlay.scale;
+                    let y = (pos.y - overlay.monitor_y as f64) / overlay.scale;
+                    if (x - last[idx].0).abs() > 0.25 || (y - last[idx].1).abs() > 0.25 {
+                        last[idx] = (x, y);
+                        let _ = app.emit_to(&overlay.label, "cursor-moved", CursorMovedPayload { x, y });
+                    }
+                }
+            }
+            thread::sleep(Duration::from_millis(16));
+        }
+    });
+}
+
+fn configure_overlay_for_monitor(
+    overlay: &WebviewWindow,
+    monitor: &tauri::Monitor,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mon_size = monitor.size();
+    let mon_pos = monitor.position();
+    overlay.set_size(tauri::Size::Physical(tauri::PhysicalSize {
+        width: mon_size.width,
+        height: mon_size.height,
+    }))?;
+    overlay.set_position(tauri::Position::Physical(tauri::PhysicalPosition {
+        x: mon_pos.x,
+        y: mon_pos.y,
+    }))?;
+    overlay.set_ignore_cursor_events(true)?; // start in pass-through
+    overlay.show()?;
+    Ok(())
+}
+
+fn overlay_labels(app: &AppHandle) -> Vec<String> {
+    app.webview_windows()
+        .keys()
+        .filter(|label| label.starts_with("overlay"))
+        .cloned()
+        .collect()
+}
+
+fn monitor_key(m: &tauri::Monitor) -> (i32, i32, u32, u32) {
+    (m.position().x, m.position().y, m.size().width, m.size().height)
 }
