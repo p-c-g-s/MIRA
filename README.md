@@ -14,6 +14,7 @@ Built with Tauri 2, React 19, and Rust.
 - **Floating toolbar** — draggable, always-on-top control panel
 - **Collapsible color palette** — starts short and expands to full preset palette on demand
 - **Freehand drawing** with Pointer Events API and Retina-quality canvas (DPR scaling)
+- **Shape tools** — line, rectangle, ellipse, and arrow
 - **6 preset colours** and **3 pen sizes**
 - **Undo / Redo / Clear**
 - **Spotlight ring** — highlight the cursor area during explanations

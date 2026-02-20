@@ -1,9 +1,14 @@
 export interface Point { x: number; y: number; }
 
+export type Tool = "pen" | "line" | "rectangle" | "ellipse" | "arrow";
+
 export interface Stroke {
-  points: Point[];
+  tool: Tool;
   color: string;   // raw CSS color e.g. "#ef4444"
-  width: number;   // logical pixels: 3 | 6 | 12
+  width: number;
+  points?: Point[]; // freehand only
+  start?: Point;    // shapes only
+  end?: Point;      // shapes only
 }
 
 export const PRESET_COLORS = [

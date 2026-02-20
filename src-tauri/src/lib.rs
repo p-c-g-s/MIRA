@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, thread, time::Duration};
 
 const TOOLBAR_POSITION_FILE: &str = "toolbar-position.json";
-const TOOLBAR_LOGICAL_WIDTH_EXPANDED: f64 = 504.0;
+const TOOLBAR_LOGICAL_WIDTH_EXPANDED: f64 = 620.0;
 const TOOLBAR_LOGICAL_HEIGHT: f64 = 60.0;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]

@@ -2,13 +2,15 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import type { Tool } from "../types";
 import { PRESET_COLORS, PEN_SIZES } from "../types";
 
-const TOOLBAR_WIDTH = 504;
+const TOOLBAR_WIDTH = 620;
 
 export function Toolbar() {
   const [overlayVisible, setOverlayVisible]     = useState(true);
   const [drawingEnabled, setDrawingEnabled]     = useState(false);
+  const [currentTool, setCurrentTool]           = useState<Tool>("pen");
   const [spotlightEnabled, setSpotlightEnabled] = useState(false);
   const [currentColor, setCurrentColor]         = useState<string>(PRESET_COLORS[0]);
   const [currentSize, setCurrentSize]           = useState<number>(6);
@@ -56,6 +58,16 @@ export function Toolbar() {
     setSpotlightEnabled(enabled);
     await invoke("emit_to_overlay", { event: "spotlight-toggled", payload: { enabled } });
   }, []);
+
+  const applyTool = useCallback(async (tool: Tool) => {
+    setCurrentTool(tool);
+    await invoke("emit_to_overlay", { event: "tool-changed", payload: { tool } });
+  }, []);
+
+  const handleSelectTool = useCallback(async (tool: Tool) => {
+    if (!drawingEnabled) await applyDrawingEnabled(true);
+    await applyTool(tool);
+  }, [applyDrawingEnabled, applyTool, drawingEnabled]);
 
   const handleClear = useCallback(async () => {
     await invoke("emit_to_overlay", { event: "shortcut-clear", payload: null });
@@ -158,6 +170,20 @@ export function Toolbar() {
         <PenIcon />
       </Btn>
 
+      {/* Tools */}
+      <Btn active={drawingEnabled && currentTool === "line"} disabled={!overlayVisible} onClick={() => void handleSelectTool("line")} title="Line tool">
+        <LineIcon />
+      </Btn>
+      <Btn active={drawingEnabled && currentTool === "rectangle"} disabled={!overlayVisible} onClick={() => void handleSelectTool("rectangle")} title="Rectangle tool">
+        <RectIcon />
+      </Btn>
+      <Btn active={drawingEnabled && currentTool === "ellipse"} disabled={!overlayVisible} onClick={() => void handleSelectTool("ellipse")} title="Ellipse tool">
+        <EllipseIcon />
+      </Btn>
+      <Btn active={drawingEnabled && currentTool === "arrow"} disabled={!overlayVisible} onClick={() => void handleSelectTool("arrow")} title="Arrow tool">
+        <ArrowIcon />
+      </Btn>
+
       {/* Spotlight */}
       <Btn active={spotlightEnabled} disabled={!overlayVisible} onClick={() => applySpotlight(!spotlightEnabled)} title="Spotlight (⌘⇧S)">
         <SpotIcon />
@@ -255,6 +281,10 @@ function EyeIcon({ on }: { on: boolean }) {
     : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>;
 }
 function PenIcon()   { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/><circle cx="11" cy="11" r="2"/></svg>; }
+function LineIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="20" x2="20" y2="4"/></svg>; }
+function RectIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="5" y="6" width="14" height="12"/></svg>; }
+function EllipseIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><ellipse cx="12" cy="12" rx="7" ry="5"/></svg>; }
+function ArrowIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="4" y1="20" x2="20" y2="4"/><polyline points="11 4 20 4 20 13"/></svg>; }
 function SpotIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>; }
 function UndoIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>; }
 function RedoIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>; }

@@ -2,20 +2,23 @@ import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useDrawing } from "../hooks/useDrawing";
 import { Spotlight } from "./Spotlight";
+import type { Tool } from "../types";
 
 export function Canvas() {
   const [drawingEnabled, setDrawingEnabled] = useState(false);
+  const [tool, setTool] = useState<Tool>("pen");
   const [color, setColor] = useState("#ffffff");
   const [lineWidth, setLineWidth] = useState(6);
   const [spotlightEnabled, setSpotlightEnabled] = useState(false);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
 
-  const { canvasRef, undo, redo, clear } = useDrawing({ color, lineWidth, enabled: drawingEnabled });
+  const { canvasRef, undo, redo, clear } = useDrawing({ color, lineWidth, enabled: drawingEnabled, tool });
 
   useEffect(() => {
     const subs: Array<() => void> = [];
     (async () => {
       subs.push(await listen<{ enabled: boolean }>("drawing-toggled",   (e) => setDrawingEnabled(e.payload.enabled)));
+      subs.push(await listen<{ tool: Tool }>("tool-changed",            (e) => setTool(e.payload.tool)));
       subs.push(await listen<{ color: string }>("color-changed",        (e) => setColor(e.payload.color)));
       subs.push(await listen<{ size: number }>("size-changed",          (e) => setLineWidth(e.payload.size)));
       subs.push(await listen<{ enabled: boolean }>("spotlight-toggled", (e) => setSpotlightEnabled(e.payload.enabled)));

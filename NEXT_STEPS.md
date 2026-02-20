@@ -38,7 +38,8 @@ Status: completed.
 
 - **Toolbar variants** — compact-only profile, menu bar mode, and auto-collapse on inactivity
 - **Stroke persistence** — save/load annotation sessions to disk
-- **Arrow and shape tools** — straight lines, rectangles, circles via click-drag
+- **Shape editing** — select, move, resize, and delete individual line/rectangle/ellipse/arrow objects
+- **Snap/constraints** — hold `Shift` for straight-angle lines and proportional rectangles/ellipses
 - **Text annotations** — floating text labels on the overlay
 - **Presentation mode** — auto-hide toolbar after N seconds of inactivity, show on hover
 - **Colour picker** — freeform colour input in addition to the 6 presets
