@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 
 const TOOLBAR_POSITION_FILE: &str = "toolbar-position.json";
-const TOOLBAR_LOGICAL_WIDTH: f64 = 468.0;
+const TOOLBAR_LOGICAL_WIDTH: f64 = 504.0;
 const TOOLBAR_LOGICAL_HEIGHT: f64 = 60.0;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -57,6 +57,30 @@ fn save_toolbar_position(app: AppHandle, x: i32, y: i32) -> Result<(), String> {
     fs::write(path, data).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn reset_toolbar_position(app: AppHandle) -> Result<(), String> {
+    let toolbar: WebviewWindow = app
+        .get_webview_window("toolbar")
+        .ok_or("toolbar window not found")?;
+    let monitor = toolbar
+        .current_monitor()
+        .map_err(|e| e.to_string())?
+        .or(toolbar.primary_monitor().map_err(|e| e.to_string())?)
+        .ok_or("no monitor available")?;
+
+    let scale = monitor.scale_factor();
+    let work_area = monitor.work_area();
+    let (x, y) = default_toolbar_position(work_area, scale);
+    toolbar
+        .set_position(tauri::Position::Physical(tauri::PhysicalPosition { x, y }))
+        .map_err(|e| e.to_string())?;
+
+    if let Ok(path) = toolbar_position_path(&app) {
+        let _ = fs::remove_file(path);
+    }
+    Ok(())
+}
+
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -78,6 +102,7 @@ pub fn run() {
             set_overlay_visible,
             emit_to_overlay,
             save_toolbar_position,
+            reset_toolbar_position,
         ])
         .setup(|app| {
             setup_windows(app)?;
@@ -125,9 +150,7 @@ fn setup_windows(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
     // Position toolbar top-center inside monitor work area by default.
     let toolbar_phys_w = (TOOLBAR_LOGICAL_WIDTH * scale) as i32;
     let toolbar_phys_h = (TOOLBAR_LOGICAL_HEIGHT * scale) as i32;
-    let margin_phys = (24.0 * scale) as i32;
-    let default_toolbar_x = work_area.position.x + (work_area.size.width as i32 - toolbar_phys_w) / 2;
-    let default_toolbar_y = work_area.position.y + margin_phys;
+    let (default_toolbar_x, default_toolbar_y) = default_toolbar_position(work_area, scale);
 
     let saved = load_toolbar_position(&app.handle())
         .map(|pos| clamp_toolbar_position(pos, work_area, toolbar_phys_w, toolbar_phys_h));
@@ -149,6 +172,7 @@ fn register_shortcuts(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Er
         Shortcut::new(meta_shift, Code::KeyX), // toggle overlay
         Shortcut::new(meta_shift, Code::KeyC), // clear
         Shortcut::new(meta_shift, Code::KeyZ), // undo
+        Shortcut::new(meta_shift, Code::KeyY), // redo
         Shortcut::new(meta_shift, Code::KeyS), // spotlight
         Shortcut::new(meta_shift, Code::KeyD), // toggle draw mode
     ])?;
@@ -162,10 +186,12 @@ fn handle_shortcut(app: &AppHandle, shortcut: &Shortcut) {
         }
         Code::KeyC => {
             let _ = app.emit_to("overlay", "shortcut-clear", ());
-            let _ = app.emit_to("toolbar", "shortcut-clear", ());
         }
         Code::KeyZ => {
             let _ = app.emit_to("overlay", "shortcut-undo", ());
+        }
+        Code::KeyY => {
+            let _ = app.emit_to("overlay", "shortcut-redo", ());
         }
         Code::KeyS => {
             let _ = app.emit_to("toolbar", "shortcut-spotlight", ());
@@ -205,4 +231,12 @@ fn clamp_toolbar_position(
         x: pos.x.clamp(min_x, max_x),
         y: pos.y.clamp(min_y, max_y),
     }
+}
+
+fn default_toolbar_position(work_area: &tauri::PhysicalRect<i32, u32>, scale: f64) -> (i32, i32) {
+    let toolbar_phys_w = (TOOLBAR_LOGICAL_WIDTH * scale) as i32;
+    let margin_phys = (24.0 * scale) as i32;
+    let x = work_area.position.x + (work_area.size.width as i32 - toolbar_phys_w) / 2;
+    let y = work_area.position.y + margin_phys;
+    (x, y)
 }

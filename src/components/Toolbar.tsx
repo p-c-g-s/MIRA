@@ -4,7 +4,7 @@ import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { PRESET_COLORS, PEN_SIZES } from "../types";
 
-const TOOLBAR_WIDTH = 468;
+const TOOLBAR_WIDTH = 504;
 
 export function Toolbar() {
   const [overlayVisible, setOverlayVisible]     = useState(true);
@@ -66,6 +66,10 @@ export function Toolbar() {
 
   const handleRedo = useCallback(async () => {
     await invoke("emit_to_overlay", { event: "shortcut-redo", payload: null });
+  }, []);
+
+  const handleResetPosition = useCallback(async () => {
+    await invoke("reset_toolbar_position");
   }, []);
 
   const handleQuit = useCallback(() => getCurrentWindow().close(), []);
@@ -185,8 +189,13 @@ export function Toolbar() {
 
       {/* Undo / Redo / Clear */}
       <Btn onClick={handleUndo} title="Undo (⌘⇧Z)"><UndoIcon /></Btn>
-      <Btn onClick={handleRedo} title="Redo"><RedoIcon /></Btn>
+      <Btn onClick={handleRedo} title="Redo (⌘⇧Y)"><RedoIcon /></Btn>
       <Btn onClick={handleClear} title="Clear (⌘⇧C)"><TrashIcon /></Btn>
+
+      <Sep />
+
+      {/* Reset toolbar position */}
+      <Btn onClick={handleResetPosition} title="Reset toolbar position"><ResetIcon /></Btn>
 
       <Sep />
 
@@ -231,4 +240,5 @@ function SpotIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fi
 function UndoIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>; }
 function RedoIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 14 20 9 15 4"/><path d="M4 20v-7a4 4 0 0 1 4-4h12"/></svg>; }
 function TrashIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>; }
+function ResetIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-9.36L1 10"/></svg>; }
 function QuitIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }

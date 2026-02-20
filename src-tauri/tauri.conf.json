@@ -30,7 +30,7 @@
       {
         "label": "toolbar",
         "title": "mira",
-        "width": 468,
+        "width": 504,
         "height": 60,
         "decorations": false,
         "transparent": true,

@@ -29,6 +29,7 @@ Built with Tauri 2, React 19, and Rust.
 | `⌘⇧D` | Toggle draw mode |
 | `⌘⇧C` | Clear canvas |
 | `⌘⇧Z` | Undo last stroke |
+| `⌘⇧Y` | Redo last undone stroke |
 | `⌘⇧S` | Toggle spotlight |
 
 > **Note:** Shortcuts require Accessibility permission on macOS. On first launch, grant access in *System Settings → Privacy & Security → Accessibility*.
@@ -68,7 +69,7 @@ Two-window Tauri design:
 │  pass-through when draw mode is off     │
 └─────────────────────────────────────────┘
 ┌──────────────────┐
-│  toolbar (380×64)│  ← floating control panel, above overlay in z-order
+│  toolbar (504×60)│  ← floating control panel, above overlay in z-order
 └──────────────────┘
 ```
 
@@ -120,3 +121,4 @@ src-tauri/
 - **Single monitor** — overlay covers the primary monitor only; multi-monitor support is planned (MVP3)
 - **Accessibility permission required** — global shortcuts use `CGEventTap` and silently fail without it
 - **No stroke persistence** — strokes live in memory for the lifetime of the session; hiding the overlay preserves them, quitting loses them
+- **Toolbar persistence scope** — toolbar position persists and can be reset from the toolbar; currently scoped to the primary monitor flow

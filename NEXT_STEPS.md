@@ -6,16 +6,12 @@ Track of planned improvements across upcoming milestones.
 
 ## MVP2 — Polish
 
-### ⌘⇧Y redo shortcut
-Redo is already implemented in `useDrawing` and wired to the toolbar button. Add the global keyboard shortcut:
-- Register `Shortcut::new(meta_shift, Code::KeyY)` in `register_shortcuts` (lib.rs)
-- Emit `shortcut-redo` to overlay in `handle_shortcut`
+Status: completed.
 
-### Toolbar position persistence
-The toolbar resets to bottom-center on every launch. Persist its position across sessions:
-- On toolbar `moved` event, save `{ x, y }` to a JSON file via a Rust command
-- On `setup_windows`, read the saved position and apply it before showing the toolbar
-- Use `tauri::api::path::app_data_dir` for the storage path
+- Added global redo shortcut `⌘⇧Y` in Rust shortcut registration and event handling.
+- Toolbar is draggable via explicit handle and persists position between launches.
+- Default toolbar placement now uses monitor work area top-center (avoids macOS dock overlap).
+- Added toolbar reset action to return to default position and clear persisted position.
 
 ---
 
