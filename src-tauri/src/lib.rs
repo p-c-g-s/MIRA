@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf, thread, time::Duration};
 
 const TOOLBAR_POSITION_FILE: &str = "toolbar-position.json";
-const TOOLBAR_LOGICAL_WIDTH_DEFAULT: f64 = 540.0;
+const TOOLBAR_LOGICAL_WIDTH_DEFAULT: f64 = 572.0;
 const TOOLBAR_LOGICAL_HEIGHT: f64 = 60.0;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
@@ -108,6 +108,26 @@ fn quit_app(app: AppHandle) {
 }
 
 #[tauri::command]
+fn open_about_window(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window("about") {
+        window.show().map_err(|e| e.to_string())?;
+        window.set_focus().map_err(|e| e.to_string())?;
+        return Ok(());
+    }
+
+    let window = WebviewWindowBuilder::new(&app, "about", WebviewUrl::App("index.html".into()))
+        .title("About Mira")
+        .inner_size(520.0, 560.0)
+        .min_inner_size(460.0, 480.0)
+        .resizable(true)
+        .visible(true)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    window.set_focus().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 fn set_toolbar_width(app: AppHandle, width: f64) -> Result<(), String> {
     let toolbar: WebviewWindow = app
         .get_webview_window("toolbar")
@@ -171,6 +191,7 @@ pub fn run() {
             save_toolbar_position,
             reset_toolbar_position,
             quit_app,
+            open_about_window,
             set_toolbar_width,
         ])
         .setup(|app| {
@@ -217,7 +238,7 @@ fn setup_windows(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
         let label = format!("overlay-{overlay_index}");
         overlay_index += 1;
         let overlay = WebviewWindowBuilder::new(app, &label, WebviewUrl::App("index.html".into()))
-            .title("mira-overlay")
+            .title("Mira Overlay")
             .decorations(false)
             .transparent(true)
             .always_on_top(true)

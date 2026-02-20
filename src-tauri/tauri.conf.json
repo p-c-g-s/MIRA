@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "mira",
+  "productName": "Mira",
   "version": "0.1.0",
   "identifier": "com.melro-io.mira",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "overlay",
-        "title": "mira-overlay",
+        "title": "Mira Overlay",
         "width": 1920,
         "height": 1080,
         "x": 0,
@@ -30,8 +30,8 @@
       },
       {
         "label": "toolbar",
-        "title": "mira",
-        "width": 540,
+        "title": "Mira",
+        "width": 572,
         "height": 60,
         "decorations": false,
         "transparent": true,

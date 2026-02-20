@@ -8,6 +8,11 @@ Mira is an always-on-top desktop overlay for live explanations on screen. You ca
 
 Built with Tauri 2, React 19, and Rust.
 
+## Project Info
+
+- Author: Pedro Santos
+- Repository: [https://github.com/p-c-g-s/MIRA](https://github.com/p-c-g-s/MIRA)
+
 ## Features
 
 - Transparent full-screen overlay above any app
