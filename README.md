@@ -1,27 +1,23 @@
 # Mira — Screen Annotation Overlay
 
-> *show what you mean.*
+![Mira toolbar preview](docs/preview.svg)
 
-Mira is a lightweight, always-on-top drawing overlay for live screen explanations. Enable draw mode and annotate anything on your screen — demos, code reviews, design walkthroughs — then clear it all away in one shortcut.
+> show what you mean.
+
+Mira is an always-on-top desktop overlay for live explanations on screen. You can draw, add geometric forms, spotlight the cursor, and clear instantly with shortcuts.
 
 Built with Tauri 2, React 19, and Rust.
 
----
-
 ## Features
 
-- **Transparent full-screen overlay** — draw on top of any app, zero interference when idle
-- **Floating toolbar** — draggable, always-on-top control panel
-- **Collapsible color palette** — starts short and expands to full preset palette on demand
-- **Freehand drawing** with Pointer Events API and Retina-quality canvas (DPR scaling)
-- **Shape tools** — line, rectangle, ellipse, and arrow
-- **6 preset colours** and **3 pen sizes**
-- **Undo / Redo / Clear**
-- **Spotlight ring** — highlight the cursor area during explanations
-- **Global keyboard shortcuts** — control everything without touching the toolbar
-- **Click-through when idle** — overlay is completely invisible to clicks when draw mode is off
-
----
+- Transparent full-screen overlay above any app
+- Draggable floating toolbar (always on top)
+- Drawing tools: pen, line, rectangle, ellipse, arrow
+- Collapsible color palette and adjustable stroke size
+- Undo, redo, clear
+- Spotlight mode (including pass-through mode)
+- Multi-monitor overlays
+- Global shortcuts for fast control
 
 ## Keyboard Shortcuts
 
@@ -30,13 +26,11 @@ Built with Tauri 2, React 19, and Rust.
 | `⌘⇧X` | Toggle overlay on / off |
 | `⌘⇧D` | Toggle draw mode |
 | `⌘⇧C` | Clear canvas |
-| `⌘⇧Z` | Undo last stroke |
-| `⌘⇧Y` | Redo last undone stroke |
-| `⌘⇧S` | Toggle spotlight (works in pass-through) |
+| `⌘⇧Z` | Undo |
+| `⌘⇧Y` | Redo |
+| `⌘⇧S` | Toggle spotlight |
 
-> **Note:** Shortcuts require Accessibility permission on macOS. On first launch, grant access in *System Settings → Privacy & Security → Accessibility*.
-
----
+> On macOS, grant Accessibility permissions in System Settings for global shortcuts.
 
 ## Getting Started
 
@@ -44,7 +38,7 @@ Built with Tauri 2, React 19, and Rust.
 
 - [Rust](https://rustup.rs/)
 - [Bun](https://bun.sh/)
-- macOS (primary target — Linux/Windows untested)
+- macOS (primary tested target)
 
 ### Development
 
@@ -53,74 +47,26 @@ bun install
 bun run tauri dev
 ```
 
-### Production build
+### Build
 
 ```bash
 bun run tauri build
 ```
 
----
-
 ## Architecture
 
-Two-window Tauri design:
+Two-window setup:
 
-```
-┌─────────────────────────────────────────┐
-│  overlay* (per monitor, transparent)    │  ← HTML Canvas, always-on-top
-│  pass-through when draw mode is off     │
-└─────────────────────────────────────────┘
-┌──────────────────┐
-│  toolbar (504×60)│  ← floating control panel, above overlay in z-order
-└──────────────────┘
-```
+- `overlay*`: transparent drawing windows (one per monitor)
+- `toolbar`: floating control window
 
-Both windows load the same Vite dev server. `App.tsx` routes by `getCurrentWindow().label` — no router library.
+`App.tsx` routes by window label. Toolbar actions invoke Rust commands, and Rust emits events back to overlay windows.
 
-**State flow:**
-```
-Toolbar button click
-  → invoke Rust command
-  → Rust emits event to overlay window
-  → Canvas listener updates local state
-```
+## Key Files
 
-Global shortcuts are registered Rust-side only via `tauri-plugin-global-shortcut`. The frontend never touches shortcut JS APIs.
-
-### Stack
-
-| Layer | Tech |
-|---|---|
-| Desktop shell | Tauri 2 |
-| Frontend | React 19 + TypeScript + Vite |
-| Styling | Tailwind CSS v4 |
-| Backend | Rust |
-| Drawing | HTML Canvas API + Pointer Events |
-
-### Key files
-
-```
-src/
-  App.tsx                  # window-label router
-  components/
-    Toolbar.tsx            # floating control panel
-    Canvas.tsx             # full-screen drawing surface
-    Spotlight.tsx          # cursor highlight ring
-  hooks/
-    useDrawing.ts          # pointer events, stroke stack, undo/redo
-  types/index.ts           # shared types and constants
-src-tauri/
-  src/lib.rs               # Tauri commands, window setup, global shortcuts
-  tauri.conf.json          # two-window app config
-  capabilities/default.json
-```
-
----
-
-## Known Limitations
-
-- **macOS only (tested)** — transparent overlay windows require the macOS private API
-- **Accessibility permission required** — global shortcuts use `CGEventTap` and silently fail without it
-- **No stroke persistence** — strokes live in memory for the lifetime of the session; hiding the overlay preserves them, quitting loses them
-- **Toolbar persistence scope** — toolbar position persists and can be reset from the toolbar; currently scoped to the primary monitor flow
-- **Focus model on macOS** — first click may still be used to activate app/window in some desktop contexts despite `acceptFirstMouse`
+- `src/components/Toolbar.tsx`
+- `src/components/Canvas.tsx`
+- `src/hooks/useDrawing.ts`
+- `src/types/index.ts`
+- `src-tauri/src/lib.rs`
+- `src-tauri/tauri.conf.json`

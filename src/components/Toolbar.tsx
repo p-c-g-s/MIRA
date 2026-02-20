@@ -11,6 +11,7 @@ export function Toolbar() {
   const [overlayVisible, setOverlayVisible]     = useState(true);
   const [drawingEnabled, setDrawingEnabled]     = useState(false);
   const [currentTool, setCurrentTool]           = useState<Tool>("pen");
+  const [toolsExpanded, setToolsExpanded]       = useState(false);
   const [spotlightEnabled, setSpotlightEnabled] = useState(false);
   const [currentColor, setCurrentColor]         = useState<string>(PRESET_COLORS[0]);
   const [currentSize, setCurrentSize]           = useState<number>(6);
@@ -46,6 +47,7 @@ export function Toolbar() {
 
   const applyColor = useCallback(async (color: string) => {
     setCurrentColor(color);
+    setColorsExpanded(false);
     await invoke("emit_to_overlay", { event: "color-changed", payload: { color } });
   }, []);
 
@@ -66,6 +68,7 @@ export function Toolbar() {
 
   const handleSelectTool = useCallback(async (tool: Tool) => {
     if (!drawingEnabled) await applyDrawingEnabled(true);
+    setToolsExpanded(false);
     await applyTool(tool);
   }, [applyDrawingEnabled, applyTool, drawingEnabled]);
 
@@ -90,6 +93,9 @@ export function Toolbar() {
   }, []);
   const toggleColorsExpanded = useCallback(() => {
     setColorsExpanded((v) => !v);
+  }, []);
+  const toggleToolsExpanded = useCallback(() => {
+    setToolsExpanded((v) => !v);
   }, []);
 
   const visibleColors = (() => {
@@ -165,24 +171,30 @@ export function Toolbar() {
 
       <Sep />
 
-      {/* Pen */}
+      {/* Draw mode */}
       <Btn active={drawingEnabled} disabled={!overlayVisible} onClick={() => applyDrawingEnabled(!drawingEnabled)} title="Draw (⌘⇧D)">
         <PenIcon />
       </Btn>
 
-      {/* Tools */}
-      <Btn active={drawingEnabled && currentTool === "line"} disabled={!overlayVisible} onClick={() => void handleSelectTool("line")} title="Line tool">
-        <LineIcon />
-      </Btn>
-      <Btn active={drawingEnabled && currentTool === "rectangle"} disabled={!overlayVisible} onClick={() => void handleSelectTool("rectangle")} title="Rectangle tool">
-        <RectIcon />
-      </Btn>
-      <Btn active={drawingEnabled && currentTool === "ellipse"} disabled={!overlayVisible} onClick={() => void handleSelectTool("ellipse")} title="Ellipse tool">
-        <EllipseIcon />
-      </Btn>
-      <Btn active={drawingEnabled && currentTool === "arrow"} disabled={!overlayVisible} onClick={() => void handleSelectTool("arrow")} title="Arrow tool">
-        <ArrowIcon />
-      </Btn>
+      {/* Shape tools */}
+      {(toolsExpanded ? (["pen", "line", "rectangle", "ellipse", "arrow"] as Tool[]) : [currentTool]).map((tool) => (
+        <Btn
+          key={tool}
+          active={drawingEnabled && currentTool === tool}
+          disabled={!overlayVisible}
+          onClick={() => void handleSelectTool(tool)}
+          title={`${tool[0].toUpperCase()}${tool.slice(1)} tool`}
+        >
+          <ToolIcon tool={tool} />
+        </Btn>
+      ))}
+      <button
+        onClick={toggleToolsExpanded}
+        title={toolsExpanded ? "Show selected tool only" : "Show all tools"}
+        className="flex-shrink-0 ml-1 flex items-center justify-center w-5 h-5 rounded text-neutral-300 hover:bg-neutral-700"
+      >
+        <PaletteExpandIcon expanded={toolsExpanded} />
+      </button>
 
       {/* Spotlight */}
       <Btn active={spotlightEnabled} disabled={!overlayVisible} onClick={() => applySpotlight(!spotlightEnabled)} title="Spotlight (⌘⇧S)">
@@ -296,3 +308,11 @@ function PaletteExpandIcon({ expanded }: { expanded: boolean }) {
     : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>;
 }
 function QuitIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }
+
+function ToolIcon({ tool }: { tool: Tool }) {
+  if (tool === "pen") return <PenIcon />;
+  if (tool === "line") return <LineIcon />;
+  if (tool === "rectangle") return <RectIcon />;
+  if (tool === "ellipse") return <EllipseIcon />;
+  return <ArrowIcon />;
+}
