@@ -5,12 +5,16 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import type { Tool } from "../types";
 import { PRESET_COLORS, PEN_SIZES } from "../types";
 
-const TOOLBAR_WIDTH = 620;
+const TOOLBAR_WIDTH_BASE = 540;
+const TOOLBAR_WIDTH_TOOLS_DELTA = 96;
+const TOOLBAR_WIDTH_COLORS_DELTA = 104;
+const SHAPE_TOOLS: Tool[] = ["line", "rectangle", "ellipse", "arrow"];
 
 export function Toolbar() {
   const [overlayVisible, setOverlayVisible]     = useState(true);
   const [drawingEnabled, setDrawingEnabled]     = useState(false);
   const [currentTool, setCurrentTool]           = useState<Tool>("pen");
+  const [currentShapeTool, setCurrentShapeTool] = useState<Tool>("line");
   const [toolsExpanded, setToolsExpanded]       = useState(false);
   const [spotlightEnabled, setSpotlightEnabled] = useState(false);
   const [currentColor, setCurrentColor]         = useState<string>(PRESET_COLORS[0]);
@@ -69,8 +73,18 @@ export function Toolbar() {
   const handleSelectTool = useCallback(async (tool: Tool) => {
     if (!drawingEnabled) await applyDrawingEnabled(true);
     setToolsExpanded(false);
+    if (tool !== "pen") setCurrentShapeTool(tool);
     await applyTool(tool);
   }, [applyDrawingEnabled, applyTool, drawingEnabled]);
+
+  const handlePen = useCallback(async () => {
+    if (drawingEnabled && currentTool === "pen") {
+      await applyDrawingEnabled(false);
+      return;
+    }
+    if (!drawingEnabled) await applyDrawingEnabled(true);
+    await applyTool("pen");
+  }, [applyDrawingEnabled, applyTool, currentTool, drawingEnabled]);
 
   const handleClear = useCallback(async () => {
     await invoke("emit_to_overlay", { event: "shortcut-clear", payload: null });
@@ -100,9 +114,11 @@ export function Toolbar() {
 
   const visibleColors = (() => {
     if (colorsExpanded) return PRESET_COLORS;
-    const base = PRESET_COLORS.slice(0, 3);
-    return base.includes(currentColor as (typeof PRESET_COLORS)[number]) ? base : [base[0], base[1], currentColor];
+    return [currentColor];
   })();
+  const toolbarWidth = TOOLBAR_WIDTH_BASE
+    + (toolsExpanded ? TOOLBAR_WIDTH_TOOLS_DELTA : 0)
+    + (colorsExpanded ? TOOLBAR_WIDTH_COLORS_DELTA : 0);
 
   // ── Global shortcut listeners (registered once — state read via refs) ────
 
@@ -138,12 +154,16 @@ export function Toolbar() {
     };
   }, []);
 
+  useEffect(() => {
+    void invoke("set_toolbar_width", { width: toolbarWidth });
+  }, [toolbarWidth]);
+
   // ── Render ───────────────────────────────────────────────────────────────
 
   return (
     <div
       className="flex items-center px-2.5 h-[60px] bg-neutral-900 rounded-xl shadow-2xl select-none"
-      style={{ width: TOOLBAR_WIDTH }}
+      style={{ width: toolbarWidth }}
     >
       {/* Explicit drag handle for reliable toolbar movement on all clickable layouts */}
       <button
@@ -171,40 +191,42 @@ export function Toolbar() {
 
       <Sep />
 
-      {/* Draw mode */}
-      <Btn active={drawingEnabled} disabled={!overlayVisible} onClick={() => applyDrawingEnabled(!drawingEnabled)} title="Draw (⌘⇧D)">
+      {/* Pencil */}
+      <Btn active={drawingEnabled && currentTool === "pen"} disabled={!overlayVisible} onClick={() => void handlePen()} title="Pencil">
         <PenIcon />
       </Btn>
 
-      {/* Shape tools */}
-      {(toolsExpanded ? (["pen", "line", "rectangle", "ellipse", "arrow"] as Tool[]) : [currentTool]).map((tool) => (
-        <Btn
-          key={tool}
-          active={drawingEnabled && currentTool === tool}
-          disabled={!overlayVisible}
-          onClick={() => void handleSelectTool(tool)}
-          title={`${tool[0].toUpperCase()}${tool.slice(1)} tool`}
-        >
-          <ToolIcon tool={tool} />
-        </Btn>
-      ))}
-      <button
-        onClick={toggleToolsExpanded}
-        title={toolsExpanded ? "Show selected tool only" : "Show all tools"}
-        className="flex-shrink-0 ml-1 flex items-center justify-center w-5 h-5 rounded text-neutral-300 hover:bg-neutral-700"
-      >
-        <PaletteExpandIcon expanded={toolsExpanded} />
-      </button>
-
-      {/* Spotlight */}
-      <Btn active={spotlightEnabled} disabled={!overlayVisible} onClick={() => applySpotlight(!spotlightEnabled)} title="Spotlight (⌘⇧S)">
+      {/* Mouse tracker */}
+      <Btn active={spotlightEnabled} disabled={!overlayVisible} onClick={() => applySpotlight(!spotlightEnabled)} title="Mouse tracker (⌘⇧S)">
         <SpotIcon />
       </Btn>
+
+      {/* Shape tools (collapsible) */}
+      <div className="flex items-center gap-1 ml-1">
+        {(toolsExpanded ? SHAPE_TOOLS : [currentShapeTool]).map((tool) => (
+          <Btn
+            key={tool}
+            active={drawingEnabled && currentTool === tool}
+            disabled={!overlayVisible}
+            onClick={() => void handleSelectTool(tool)}
+            title={`${tool[0].toUpperCase()}${tool.slice(1)} tool`}
+          >
+            <ToolIcon tool={tool} />
+          </Btn>
+        ))}
+        <button
+          onClick={toggleToolsExpanded}
+          title={toolsExpanded ? "Show selected tool only" : "Show all tools"}
+          className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded text-neutral-300 hover:bg-neutral-700"
+        >
+          <PaletteExpandIcon expanded={toolsExpanded} />
+        </button>
+      </div>
 
       <Sep />
 
       {/* Colors */}
-      <div className="flex flex-shrink-0 gap-0.5">
+      <div className="flex flex-shrink-0 gap-1">
         {visibleColors.map((c) => (
           <button
             key={c}
@@ -272,7 +294,7 @@ function Btn({ onClick, active, disabled, title, children }: {
     <button
       onClick={onClick} disabled={disabled} title={title}
       className={[
-        "flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-md transition-colors text-white",
+        "flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-md transition-colors text-white mx-[1px]",
         active ? "bg-blue-600 hover:bg-blue-500" : "hover:bg-neutral-700",
         disabled ? "opacity-30 cursor-not-allowed" : "cursor-pointer",
       ].join(" ")}
