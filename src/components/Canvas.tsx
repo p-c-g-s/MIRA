@@ -66,7 +66,7 @@ export function Canvas() {
     >
       <canvas 
         ref={canvasRef} 
-        className="absolute inset-0 w-full h-full pointer-events-none" 
+        className={`absolute inset-0 w-full h-full ${drawingEnabled ? '' : 'pointer-events-none'}`} 
         style={{ touchAction: "none" }} 
       />
       {spotlightEnabled && <Spotlight x={cursor.x} y={cursor.y} />}

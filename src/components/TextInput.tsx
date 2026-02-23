@@ -45,7 +45,7 @@ export function TextInput({ x, y, color, fontSize, onSubmit, onCancel }: TextInp
       onChange={(e) => setText(e.target.value)}
       onKeyDown={handleKeyDown}
       onBlur={handleBlur}
-      className="absolute bg-transparent outline-none border-b border-white/50 px-1 py-0.5"
+      className="absolute bg-transparent outline-none px-1 py-0.5"
       style={{
         left: x,
         top: y,
