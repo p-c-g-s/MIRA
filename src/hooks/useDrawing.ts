@@ -24,6 +24,15 @@ export function useDrawing({ color, lineWidth, enabled, tool }: UseDrawingOption
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
+    if (stroke.tool === "text") {
+      if (!stroke.text || !stroke.position) return;
+      ctx.fillStyle = stroke.color;
+      ctx.font = `${stroke.width * 3}px system-ui, -apple-system, sans-serif`;
+      ctx.textBaseline = "middle";
+      ctx.fillText(stroke.text, stroke.position.x, stroke.position.y);
+      return;
+    }
+
     if (stroke.tool === "pen") {
       if (!stroke.points || stroke.points.length < 2) return;
       ctx.beginPath();
@@ -233,5 +242,20 @@ export function useDrawing({ color, lineWidth, enabled, tool }: UseDrawingOption
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
   }, [getCtx]);
 
-  return { canvasRef, undo, redo, clear };
+  const addTextStroke = useCallback((text: string, x: number, y: number) => {
+    strokesRef.current = [
+      ...strokesRef.current,
+      {
+        tool: "text",
+        text,
+        position: { x, y },
+        color,
+        width: lineWidth,
+      },
+    ];
+    redoStackRef.current = [];
+    replayStrokes(strokesRef.current);
+  }, [color, lineWidth, replayStrokes]);
+
+  return { canvasRef, undo, redo, clear, addTextStroke };
 }
