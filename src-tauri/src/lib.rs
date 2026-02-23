@@ -63,6 +63,13 @@ fn set_overlay_visible(app: AppHandle, visible: bool) -> Result<(), String> {
             }
         }
     }
+    // Re-raise toolbar to ensure it stays above overlay
+    if visible {
+        if let Some(toolbar) = app.get_webview_window("toolbar") {
+            let _ = toolbar.set_always_on_top(false);
+            let _ = toolbar.set_always_on_top(true);
+        }
+    }
     Ok(())
 }
 
