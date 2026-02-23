@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf, thread, time::Duration};
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
+use serde::{Deserialize, Serialize};
+use std::{fs, path::PathBuf, thread, time::Duration};
 
 const TOOLBAR_POSITION_FILE: &str = "toolbar-position.json";
 const TOOLBAR_LOGICAL_WIDTH_DEFAULT: f64 = 540.0;
@@ -41,13 +41,6 @@ fn set_overlay_passthrough(app: AppHandle, pass_through: bool) -> Result<(), Str
                 .map_err(|e| e.to_string())?;
         }
     }
-    // Re-raise toolbar after changing overlay passthrough to ensure it stays clickable
-    if !pass_through {
-        if let Some(toolbar) = app.get_webview_window("toolbar") {
-            let _ = toolbar.set_always_on_top(false);
-            let _ = toolbar.set_always_on_top(true);
-        }
-    }
     Ok(())
 }
 
@@ -63,24 +56,13 @@ fn set_overlay_visible(app: AppHandle, visible: bool) -> Result<(), String> {
             }
         }
     }
-    // Re-raise toolbar to ensure it stays above overlay
-    if visible {
-        if let Some(toolbar) = app.get_webview_window("toolbar") {
-            let _ = toolbar.set_always_on_top(false);
-            let _ = toolbar.set_always_on_top(true);
-        }
-    }
     Ok(())
 }
 
 /// Bridge: toolbar frontend calls this to push events to the overlay window.
 /// Avoids needing core:event:allow-emit-to permission on the frontend.
 #[tauri::command]
-fn emit_to_overlay(
-    app: AppHandle,
-    event: String,
-    payload: serde_json::Value,
-) -> Result<(), String> {
+fn emit_to_overlay(app: AppHandle, event: String, payload: serde_json::Value) -> Result<(), String> {
     for label in overlay_labels(&app) {
         app.emit_to(&label, &event, payload.clone())
             .map_err(|e| e.to_string())?;
@@ -165,6 +147,7 @@ fn set_toolbar_width(app: AppHandle, width: f64) -> Result<(), String> {
     save_toolbar_position(app, clamped.x, clamped.y)
 }
 
+
 // ── Entry Point ───────────────────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -211,9 +194,7 @@ fn setup_windows(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>>
         .get_webview_window("overlay")
         .ok_or("overlay window missing")?;
 
-    let primary_monitor = primary_overlay
-        .primary_monitor()?
-        .ok_or("no primary monitor")?;
+    let primary_monitor = primary_overlay.primary_monitor()?.ok_or("no primary monitor")?;
     let primary_key = monitor_key(&primary_monitor);
     let work_area = primary_monitor.work_area();
     let scale = primary_monitor.scale_factor();
@@ -372,11 +353,7 @@ fn start_cursor_polling(app: AppHandle, overlays: Vec<OverlayWindowInfo>) {
                     let y = (pos.y - overlay.monitor_y as f64) / overlay.scale;
                     if (x - last[idx].0).abs() > 0.25 || (y - last[idx].1).abs() > 0.25 {
                         last[idx] = (x, y);
-                        let _ = app.emit_to(
-                            &overlay.label,
-                            "cursor-moved",
-                            CursorMovedPayload { x, y },
-                        );
+                        let _ = app.emit_to(&overlay.label, "cursor-moved", CursorMovedPayload { x, y });
                     }
                 }
             }
@@ -413,10 +390,5 @@ fn overlay_labels(app: &AppHandle) -> Vec<String> {
 }
 
 fn monitor_key(m: &tauri::Monitor) -> (i32, i32, u32, u32) {
-    (
-        m.position().x,
-        m.position().y,
-        m.size().width,
-        m.size().height,
-    )
+    (m.position().x, m.position().y, m.size().width, m.size().height)
 }
