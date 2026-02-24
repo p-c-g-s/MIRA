@@ -17,8 +17,66 @@ permissions:
   contents: write
 
 jobs:
+  prepare:
+    name: Prepare Release
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      version_bare: ${{ steps.version.outputs.version_bare }}
+    steps:
+      - name: Validate version input
+        shell: bash
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          # Accept optional leading "v" and semantic versioning (e.g., v1.2.3 or 1.2.3-beta.1)
+          if [[ ! "$VERSION" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+            echo "Error: Invalid version format '$VERSION'. Expected semver like v1.2.3 or 1.2.3"
+            exit 1
+          fi
+          echo "Version '$VERSION' is valid"
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute version
+        id: version
+        shell: bash
+        run: |
+          VERSION="${{ github.event.inputs.version }}"
+          # Remove 'v' prefix if present for Cargo.toml
+          VERSION_BARE="${VERSION#v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "version_bare=$VERSION_BARE" >> "$GITHUB_OUTPUT"
+
+      - name: Update version in Cargo.toml
+        shell: bash
+        run: |
+          VERSION_BARE="${{ steps.version.outputs.version_bare }}"
+          # Update only the version in the [package] section (first occurrence)
+          sed -i '0,/^version = ".*"/s//version = "'"${VERSION_BARE}"'"/' src-tauri/Cargo.toml
+          echo "Updated Cargo.toml to version ${VERSION_BARE}"
+          grep -m1 '^version = ' src-tauri/Cargo.toml
+
+      - name: Commit and push version bump
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add src-tauri/Cargo.toml
+          git commit -m "chore: bump version to ${{ steps.version.outputs.version_bare }}"
+          git push
+
+      - name: Create and push tag
+        shell: bash
+        run: |
+          git tag "${{ steps.version.outputs.version }}"
+          git push origin "${{ steps.version.outputs.version }}"
+
   release:
     name: Release (${{ matrix.platform.name }})
+    needs: prepare
     runs-on: ${{ matrix.platform.runner }}
     strategy:
       fail-fast: false
@@ -34,11 +92,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.prepare.outputs.version }}
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.x"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -62,31 +122,14 @@ jobs:
       - name: Install JS dependencies
         run: bun install --frozen-lockfile
 
-      - name: Update version in Cargo.toml
-        shell: bash
-        run: |
-          VERSION="${{ github.event.inputs.version }}"
-          # Remove 'v' prefix if present
-          VERSION="${VERSION#v}"
-          sed -i.bak "s/^version = \".*\"/version = \"${VERSION}\"/" src-tauri/Cargo.toml
-          rm src-tauri/Cargo.toml.bak
-
       - name: Build Tauri app
         run: bun run tauri build
-
-      - name: Create Tag
-        if: matrix.platform.name == 'macOS'
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git tag ${{ github.event.inputs.version }}
-          git push origin ${{ github.event.inputs.version }}
 
       - name: Upload Release Assets
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.version }}
-          name: Release ${{ github.event.inputs.version }}
+          tag_name: ${{ needs.prepare.outputs.version }}
+          name: Release ${{ needs.prepare.outputs.version }}
           draft: ${{ github.event.inputs.draft }}
           generate_release_notes: true
           files: |

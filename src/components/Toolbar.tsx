@@ -333,10 +333,14 @@ function TextIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fil
 function QuitIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }
 
 function ToolIcon({ tool }: { tool: Tool }) {
-  if (tool === "pen") return <PenIcon />;
-  if (tool === "line") return <LineIcon />;
-  if (tool === "rectangle") return <RectIcon />;
-  if (tool === "ellipse") return <EllipseIcon />;
-  if (tool === "arrow") return <ArrowIcon />;
-  return <TextIcon />;
+  switch (tool) {
+    case "pen": return <PenIcon />;
+    case "line": return <LineIcon />;
+    case "rectangle": return <RectIcon />;
+    case "ellipse": return <EllipseIcon />;
+    case "arrow": return <ArrowIcon />;
+    case "text": return <TextIcon />;
+    default:
+      return null;
+  }
 }

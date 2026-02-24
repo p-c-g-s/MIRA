@@ -12,7 +12,7 @@ export function Canvas() {
   const [lineWidth, setLineWidth] = useState(6);
   const [spotlightEnabled, setSpotlightEnabled] = useState(false);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
-  const [textInput, setTextInput] = useState<{ x: number; y: number } | null>(null);
+  const [textInput, setTextInput] = useState<{ x: number; y: number; color: string; lineWidth: number } | null>(null);
 
   const { canvasRef, undo, redo, clear, addTextStroke } = useDrawing({ 
     color, 
@@ -43,13 +43,15 @@ export function Canvas() {
       setTextInput({
         x: e.clientX - rect.left,
         y: e.clientY - rect.top,
+        color,
+        lineWidth,
       });
     }
-  }, [tool, drawingEnabled]);
+  }, [tool, drawingEnabled, color, lineWidth]);
 
   const handleTextSubmit = useCallback((text: string) => {
     if (textInput) {
-      addTextStroke(text, textInput.x, textInput.y);
+      addTextStroke(text, textInput.x, textInput.y, textInput.color, textInput.lineWidth);
       setTextInput(null);
     }
   }, [textInput, addTextStroke]);
@@ -74,8 +76,8 @@ export function Canvas() {
         <TextInput
           x={textInput.x}
           y={textInput.y}
-          color={color}
-          fontSize={lineWidth}
+          color={textInput.color}
+          fontSize={textInput.lineWidth}
           onSubmit={handleTextSubmit}
           onCancel={handleTextCancel}
         />

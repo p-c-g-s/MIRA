@@ -171,6 +171,9 @@ export function useDrawing({ color, lineWidth, enabled, tool }: UseDrawingOption
     if (!canvas || !enabled) return;
 
     const onDown = (e: PointerEvent) => {
+      // Text tool is handled by Canvas.tsx click handler, not pointer drawing
+      if (tool === "text") return;
+      
       isDrawingRef.current = true;
       canvas.setPointerCapture(e.pointerId);
       const rect = canvas.getBoundingClientRect();
@@ -285,20 +288,20 @@ export function useDrawing({ color, lineWidth, enabled, tool }: UseDrawingOption
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
   }, [getCtx]);
 
-  const addTextStroke = useCallback((text: string, x: number, y: number) => {
+  const addTextStroke = useCallback((text: string, x: number, y: number, textColor: string, textWidth: number) => {
     strokesRef.current = [
       ...strokesRef.current,
       {
         tool: "text",
         text,
         position: { x, y },
-        color,
-        width: lineWidth,
+        color: textColor,
+        width: textWidth,
       },
     ];
     redoStackRef.current = [];
     replayStrokes(strokesRef.current);
-  }, [color, lineWidth, replayStrokes]);
+  }, [replayStrokes]);
 
   return { canvasRef, undo, redo, clear, addTextStroke };
 }
