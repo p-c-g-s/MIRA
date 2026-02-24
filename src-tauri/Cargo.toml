@@ -1,6 +1,6 @@
 [package]
 name = "Mira"
-version = "0.1.0"
+version = "0.2.0"
 description = "Mira: lightweight screen annotation overlay for live presentations"
 authors = ["Pedro Santos"]
 homepage = "https://github.com/p-c-g-s/MIRA"
