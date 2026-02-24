@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { useDrawing } from "../hooks/useDrawing";
 import { Spotlight } from "./Spotlight";
+import { TextInput } from "./TextInput";
 import type { Tool } from "../types";
 
 export function Canvas() {
@@ -11,8 +12,14 @@ export function Canvas() {
   const [lineWidth, setLineWidth] = useState(6);
   const [spotlightEnabled, setSpotlightEnabled] = useState(false);
   const [cursor, setCursor] = useState({ x: 0, y: 0 });
+  const [textInput, setTextInput] = useState<{ x: number; y: number; color: string; lineWidth: number } | null>(null);
 
-  const { canvasRef, undo, redo, clear } = useDrawing({ color, lineWidth, enabled: drawingEnabled, tool });
+  const { canvasRef, undo, redo, clear, addTextStroke } = useDrawing({ 
+    color, 
+    lineWidth, 
+    enabled: drawingEnabled, 
+    tool 
+  });
 
   useEffect(() => {
     const subs: Array<() => void> = [];
@@ -30,10 +37,51 @@ export function Canvas() {
     return () => subs.forEach((fn) => fn());
   }, [clear, undo, redo]);
 
+  const handleCanvasClick = useCallback((e: React.MouseEvent) => {
+    if (tool === "text" && drawingEnabled) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      setTextInput({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        color,
+        lineWidth,
+      });
+    }
+  }, [tool, drawingEnabled, color, lineWidth]);
+
+  const handleTextSubmit = useCallback((text: string) => {
+    if (textInput) {
+      addTextStroke(text, textInput.x, textInput.y, textInput.color, textInput.lineWidth);
+      setTextInput(null);
+    }
+  }, [textInput, addTextStroke]);
+
+  const handleTextCancel = useCallback(() => {
+    setTextInput(null);
+  }, []);
+
   return (
-    <div className="fixed inset-0 w-full h-full" style={{ cursor: drawingEnabled ? "crosshair" : "default" }}>
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" style={{ touchAction: "none" }} />
+    <div 
+      className="fixed inset-0 w-full h-full" 
+      style={{ cursor: drawingEnabled ? "crosshair" : "default" }}
+      onClick={handleCanvasClick}
+    >
+      <canvas 
+        ref={canvasRef} 
+        className={`absolute inset-0 w-full h-full ${drawingEnabled ? '' : 'pointer-events-none'}`} 
+        style={{ touchAction: "none" }} 
+      />
       {spotlightEnabled && <Spotlight x={cursor.x} y={cursor.y} />}
+      {textInput && (
+        <TextInput
+          x={textInput.x}
+          y={textInput.y}
+          color={textInput.color}
+          fontSize={textInput.lineWidth}
+          onSubmit={handleTextSubmit}
+          onCancel={handleTextCancel}
+        />
+      )}
     </div>
   );
 }

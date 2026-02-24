@@ -1,6 +1,43 @@
 import { useRef, useCallback, useEffect } from "react";
 import type { Stroke, Point, Tool } from "../types";
 
+// Helper functions for Shift-key constraints
+function constrainTo45Degrees(start: Point, end: Point): Point {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const angle = Math.atan2(dy, dx);
+  const distance = Math.sqrt(dx * dx + dy * dy);
+
+  // Round to nearest 45° (π/4 radians)
+  const snapAngle = Math.round(angle / (Math.PI / 4)) * (Math.PI / 4);
+
+  return {
+    x: start.x + Math.cos(snapAngle) * distance,
+    y: start.y + Math.sin(snapAngle) * distance,
+  };
+}
+
+function constrainToSquare(start: Point, end: Point): Point {
+  const dx = end.x - start.x;
+  const dy = end.y - start.y;
+  const maxDist = Math.max(Math.abs(dx), Math.abs(dy));
+
+  return {
+    x: start.x + (dx > 0 ? maxDist : -maxDist),
+    y: start.y + (dy > 0 ? maxDist : -maxDist),
+  };
+}
+
+function applyShiftConstraint(start: Point, end: Point, tool: Tool): Point {
+  if (tool === "line" || tool === "arrow") {
+    return constrainTo45Degrees(start, end);
+  }
+  if (tool === "rectangle" || tool === "ellipse") {
+    return constrainToSquare(start, end);
+  }
+  return end;
+}
+
 interface UseDrawingOptions {
   color: string;
   lineWidth: number;
@@ -23,6 +60,15 @@ export function useDrawing({ color, lineWidth, enabled, tool }: UseDrawingOption
     ctx.lineWidth = stroke.width;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
+
+    if (stroke.tool === "text") {
+      if (!stroke.text || !stroke.position) return;
+      ctx.fillStyle = stroke.color;
+      ctx.font = `${stroke.width * 3}px system-ui, -apple-system, sans-serif`;
+      ctx.textBaseline = "middle";
+      ctx.fillText(stroke.text, stroke.position.x, stroke.position.y);
+      return;
+    }
 
     if (stroke.tool === "pen") {
       if (!stroke.points || stroke.points.length < 2) return;
@@ -125,6 +171,9 @@ export function useDrawing({ color, lineWidth, enabled, tool }: UseDrawingOption
     if (!canvas || !enabled) return;
 
     const onDown = (e: PointerEvent) => {
+      // Text tool is handled by Canvas.tsx click handler, not pointer drawing
+      if (tool === "text") return;
+      
       isDrawingRef.current = true;
       canvas.setPointerCapture(e.pointerId);
       const rect = canvas.getBoundingClientRect();
@@ -156,7 +205,13 @@ export function useDrawing({ color, lineWidth, enabled, tool }: UseDrawingOption
     const onMove = (e: PointerEvent) => {
       if (!isDrawingRef.current) return;
       const rect = canvas.getBoundingClientRect();
-      const pt = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+      let pt = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+
+      // Apply Shift key constraints for shapes
+      if (e.shiftKey && previewStrokeRef.current?.start && tool !== "pen" && tool !== "text") {
+        pt = applyShiftConstraint(previewStrokeRef.current.start, pt, tool);
+      }
+
       if (tool === "pen") {
         currentPointsRef.current.push(pt);
         const ctx = getCtx();
@@ -233,5 +288,20 @@ export function useDrawing({ color, lineWidth, enabled, tool }: UseDrawingOption
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
   }, [getCtx]);
 
-  return { canvasRef, undo, redo, clear };
+  const addTextStroke = useCallback((text: string, x: number, y: number, textColor: string, textWidth: number) => {
+    strokesRef.current = [
+      ...strokesRef.current,
+      {
+        tool: "text",
+        text,
+        position: { x, y },
+        color: textColor,
+        width: textWidth,
+      },
+    ];
+    redoStackRef.current = [];
+    replayStrokes(strokesRef.current);
+  }, [replayStrokes]);
+
+  return { canvasRef, undo, redo, clear, addTextStroke };
 }

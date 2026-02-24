@@ -1,4 +1,4 @@
-name: Build Mira (Tauri)
+name: Build Mira
 
 on:
   workflow_dispatch:
@@ -8,11 +8,13 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "v*"
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.sha }}
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -36,7 +38,7 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
-          bun-version: latest
+          bun-version: "1.x"
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -70,3 +72,4 @@ jobs:
           path: |
             src-tauri/target/release/bundle/
           if-no-files-found: error
+          retention-days: 7

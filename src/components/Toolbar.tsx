@@ -8,7 +8,7 @@ import { PRESET_COLORS, PEN_SIZES } from "../types";
 const TOOLBAR_WIDTH_BASE = 540;
 const TOOLBAR_WIDTH_TOOLS_DELTA = 96;
 const TOOLBAR_WIDTH_COLORS_DELTA = 104;
-const SHAPE_TOOLS: Tool[] = ["line", "rectangle", "ellipse", "arrow"];
+const SHAPE_TOOLS: Tool[] = ["line", "rectangle", "ellipse", "arrow", "text"];
 
 export function Toolbar() {
   const [overlayVisible, setOverlayVisible]     = useState(true);
@@ -329,12 +329,18 @@ function PaletteExpandIcon({ expanded }: { expanded: boolean }) {
     ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="15 18 9 12 15 6"/></svg>
     : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 18 15 12 9 6"/></svg>;
 }
+function TextIcon() { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7V5h16v2"/><path d="M9 21h6"/><path d="M12 5v14"/></svg>; }
 function QuitIcon()  { return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>; }
 
 function ToolIcon({ tool }: { tool: Tool }) {
-  if (tool === "pen") return <PenIcon />;
-  if (tool === "line") return <LineIcon />;
-  if (tool === "rectangle") return <RectIcon />;
-  if (tool === "ellipse") return <EllipseIcon />;
-  return <ArrowIcon />;
+  switch (tool) {
+    case "pen": return <PenIcon />;
+    case "line": return <LineIcon />;
+    case "rectangle": return <RectIcon />;
+    case "ellipse": return <EllipseIcon />;
+    case "arrow": return <ArrowIcon />;
+    case "text": return <TextIcon />;
+    default:
+      return null;
+  }
 }

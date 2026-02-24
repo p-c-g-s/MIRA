@@ -1,6 +1,6 @@
 export interface Point { x: number; y: number; }
 
-export type Tool = "pen" | "line" | "rectangle" | "ellipse" | "arrow";
+export type Tool = "pen" | "line" | "rectangle" | "ellipse" | "arrow" | "text";
 
 export interface Stroke {
   tool: Tool;
@@ -9,6 +9,8 @@ export interface Stroke {
   points?: Point[]; // freehand only
   start?: Point;    // shapes only
   end?: Point;      // shapes only
+  text?: string;    // text only
+  position?: Point; // text only
 }
 
 export const PRESET_COLORS = [
